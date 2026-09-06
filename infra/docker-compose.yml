@@ -1,0 +1,122 @@
+# Base stack. Select hardware with COMPOSE_PROFILES=cpu|gpu in .env
+#   docker compose -f infra/docker-compose.yml --env-file .env up --build
+# (or from repo root: `make up`)
+name: lms-platform
+
+x-py-env: &py-env
+  env_file: ../.env
+  environment:
+    DATA_DIR: /data
+    PROMPTS_DIR: /srv/packages/prompts
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    <<: *py-env
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ../data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ..
+      dockerfile: services/worker/Dockerfile
+    <<: *py-env
+    restart: unless-stopped
+    volumes:
+      - ../data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+
+  tts:
+    build:
+      context: ..
+      dockerfile: services/tts/Dockerfile
+    env_file: ../.env
+    environment:
+      TTS_MODEL_DIR: /models
+    restart: unless-stopped
+    ports:
+      - "8880:8880"
+    volumes:
+      - ../data/models/tts:/models
+
+  # ---- cpu profile: Ollama ---------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["cpu"]
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ../data/models/ollama:/root/.ollama
+
+  # ---- gpu profile: vLLM on the H100 -----------------------------------------
+  inference:
+    image: vllm/vllm-openai:latest
+    profiles: ["gpu"]
+    restart: unless-stopped
+    ipc: host
+    environment:
+      HF_HOME: /data/models/hf
+      HF_HUB_OFFLINE: "1"
+    command: >
+      --model ${VLLM_MODEL}
+      --max-model-len ${VLLM_MAX_MODEL_LEN:-32768}
+      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.90}
+      --enable-prefix-caching
+      --served-model-name ${VLLM_MODEL} lms-base
+    ports:
+      - "8001:8000"
+    volumes:
+      - ../data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  pgdata:

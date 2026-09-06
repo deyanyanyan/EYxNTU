@@ -1,0 +1,29 @@
+# Development overrides: bind-mount source for hot reload.
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml --env-file .env up
+services:
+  api:
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    volumes:
+      - ../apps/api:/srv/api
+      - ../packages/prompts:/srv/packages/prompts
+      - ../data:/data
+
+  worker:
+    volumes:
+      - ../apps/api:/srv/api
+      - ../packages/prompts:/srv/packages/prompts
+      - ../services/worker:/srv/worker
+      - ../data:/data
+
+  web:
+    build:
+      target: dev
+    command: sh -c "npm install && npm run dev"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    volumes:
+      - ../apps/web:/srv/web
+      - web_node_modules:/srv/web/node_modules
+
+volumes:
+  web_node_modules:

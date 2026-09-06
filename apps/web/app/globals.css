@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Self-hosted type. Drop the woff2 files into public/fonts (see public/fonts/README.md).
+   Until then the stacks fall back to system fonts; nothing loads from the network. */
+@font-face { font-family: "Manrope"; src: url("/fonts/Manrope-Variable.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("/fonts/JetBrainsMono-Variable.woff2") format("woff2"); font-weight: 100 800; font-display: swap; }
+
+@layer base {
+  :root {
+    /* graphite base + single amber accent */
+    --background: 220 20% 97%;
+    --foreground: 224 25% 12%;
+    --surface: 0 0% 100%;
+    --surface-raised: 0 0% 100%;
+    --border: 220 14% 88%;
+    --input: 220 14% 88%;
+    --ring: 38 92% 50%;
+    --muted: 220 16% 94%;
+    --muted-foreground: 222 12% 44%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 30 40% 10%;
+    --accent-soft: 38 92% 94%;
+    --primary: 224 25% 12%;
+    --primary-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 60% 38%;
+    --warning: 28 90% 52%;
+    --radius: 6px;
+  }
+
+  .dark {
+    --background: 224 20% 8%;
+    --foreground: 220 20% 92%;
+    --surface: 224 18% 11%;
+    --surface-raised: 224 16% 14%;
+    --border: 222 14% 20%;
+    --input: 222 14% 20%;
+    --ring: 38 92% 55%;
+    --muted: 224 16% 15%;
+    --muted-foreground: 220 10% 60%;
+    --accent: 38 92% 55%;
+    --accent-foreground: 30 40% 10%;
+    --accent-soft: 38 40% 16%;
+    --primary: 220 20% 92%;
+    --primary-foreground: 224 20% 8%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 55% 45%;
+    --warning: 28 90% 58%;
+  }
+
+  * { @apply border-border; }
+  html { color-scheme: light dark; }
+  body { @apply bg-background text-foreground font-sans antialiased; font-feature-settings: "ss01", "cv11"; }
+  code, kbd, pre, .mono { @apply font-mono text-[0.85em]; }
+  ::selection { background: hsl(var(--accent) / 0.35); }
+}
+
+@layer components {
+  .pane { @apply bg-surface border-border; }
+  .pane-header { @apply h-11 px-3 flex items-center justify-between border-b text-xs font-medium uppercase tracking-wide text-muted-foreground; }
+  .citation-chip { @apply inline-flex items-center gap-1 rounded-sm border border-accent/40 bg-accent-soft px-1.5 py-0.5 font-mono text-[11px] text-foreground; }
+}

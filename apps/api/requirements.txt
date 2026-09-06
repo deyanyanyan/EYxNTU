@@ -1,0 +1,38 @@
+# --- web ---
+fastapi>=0.119,<1
+uvicorn[standard]>=0.37
+python-multipart>=0.0.20
+pydantic>=2.12,<3
+pydantic-settings>=2.11
+email-validator>=2.2
+
+# --- db ---
+sqlalchemy>=2.0.44,<3
+psycopg[binary]>=3.2
+pgvector>=0.3.6
+alembic>=1.14
+
+# --- auth ---
+python-jose[cryptography]>=3.5
+bcrypt>=4.2
+
+# --- llm (OpenAI-compatible endpoints: vLLM / Ollama) ---
+openai>=2.3
+pydantic-ai-slim[openai]>=1.7
+
+# --- retrieval ---
+sentence-transformers>=5.1
+numpy>=2.0
+langchain-text-splitters>=0.3.11
+
+# --- document parsing ---
+docling>=2.30
+pypdf>=5.0
+python-docx>=1.2
+python-pptx>=1.0.2
+
+# --- dev/test ---
+pytest>=8.3
+pytest-asyncio>=0.24
+httpx>=0.28
+ruff>=0.7
