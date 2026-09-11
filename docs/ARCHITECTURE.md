@@ -1,11 +1,13 @@
 # Architecture
 
 ## Goals
+This document describes the target design. The implemented pipeline currently ends at source ingestion and retrieval; generation and export handlers are stubs. The revised scope uses pretrained models without training or fine-tuning. See [sprint 1](SPRINT_01.md) for the immediate deliverable.
+
 1. **Air-gapped**: no external APIs at runtime; every model is open-source and local.
 2. **Grounded**: every generated block cites a source chunk; a validator rejects citations that do not exist.
 3. **Reviewable**: plan and asset approval gates before anything is rendered or packaged.
 4. **Swappable models**: the LLM, embedder and TTS are behind URLs and env vars only.
-5. **Reproducible**: one `docker compose up`, Alembic-managed schema, deterministic render pipeline.
+5. **Reproducible**: documented Docker startup, Alembic-managed schema, and a planned deterministic render pipeline.
 
 ## System view
 
@@ -24,7 +26,7 @@
 │ PostgreSQL  │ │ services/worker │ │ services/      │ │ services/tts  │
 │ + pgvector  │ │ ingest · plan · │ │ inference      │ │ Piper/Kokoro  │
 │             │ │ generate ·      │ │ vLLM/Ollama    │ │               │
-│             │ │ render · package│ │ Qwen (+LoRA)   │ │               │
+│             │ │ render · package│ │ Qwen          │ │               │
 └─────────────┘ └───┬─────────────┘ └────────────────┘ └───────────────┘
                     │
               ┌─────▼──────────┐
@@ -67,10 +69,14 @@ schemas/   Pydantic request/response DTOs
 ## Model serving
 - All chat calls go through `core/llm/client.py` using the OpenAI SDK against `LLM_BASE_URL`. Structured output uses `response_format=json_object` with schema-in-prompt and validation retries; vLLM users can switch to guided decoding later without touching callers.
 - Embeddings run in-process with sentence-transformers (`EMBEDDING_MODEL`, `EMBEDDING_DIM`). The vector column width is fixed at migration time; changing the model means a new migration and a re-embed.
-- `services/inference/README.md` covers Ollama (cpu) and vLLM + AWQ + LoRA adapter (gpu).
+- `services/inference/README.md` covers the default Ollama setup and the experimental pretrained vLLM configuration.
 
 ## Job execution
-Postgres is the queue. The API inserts rows; workers `SELECT … FOR UPDATE SKIP LOCKED`, so multiple workers are safe. Progress and `cancel_requested` are polled by handlers between batches. The UI subscribes to `/jobs/stream/{id}` (SSE).
+Postgres is the queue. The API inserts rows; workers claim jobs with `SELECT … FOR UPDATE SKIP LOCKED`. Progress and `cancel_requested` are polled between batches. The UI subscribes to `/jobs/stream/{id}` (SSE). Cancellation, re-ingestion concurrency and project permissions need further regression coverage before authoring integration.
+
+The API runs migrations and bootstraps its admin account in one process before readiness passes. Compose waits for database health before the API and for API health before the worker/web. Both Python services use targets in `apps/api/Dockerfile` and share dependencies. The default CPU stack excludes optional TTS (`media` profile).
+
+Planned LangGraph integration lives inside the worker. A paused review must persist its checkpoint and release the worker; an authorized approval resumes that revision. Existing job rows do not yet implement these semantics. LangChain tools can wrap retrieval and generation helpers after local tool-calling compatibility is tested.
 
 ## Security
 - JWT (HS256) with role claim; server-side role guards in FastAPI; edge middleware in Next.js routes by role but never trusts the token for authorisation.

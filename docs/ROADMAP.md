@@ -1,67 +1,48 @@
-# Roadmap
+# Project roadmap
 
-15 weeks, Mon 7 Sep → Fri 18 Dec 2026. Four workstreams from the project scope:
-**A** Ingestion & grounding · **B** Planning & pedagogy · **C** Asset generation & export · **D** Video & model optimisation.
-One owner per workstream; everyone contributes to eval and docs. Friday integration checkpoint; `main` always demoable.
+Scope authority: the revised [project brief](project-brief.html), dated 11 September 2026. The project runs for 15 weeks, 7 September to 18 December. Use pretrained local models, retrieval, structured generation, bounded critique/revision and human approval. Training, QLoRA adapters and fine-tuning are not deliverables.
 
-## Milestones
+The [current two-week plan](SPRINT_01.md) defines the immediate commitments. Later dates below are targets, not claims that the features exist.
 
-| # | Milestone | Weeks (dates) | Exit criteria |
-|---|---|---|---|
-| **M0** Foundation | Wk 1–2 (7–18 Sep) | Boilerplate cut & scrubbed; `make up` on laptops (Ollama) and on the H100 (vLLM Qwen 32B AWQ); auth + roles + projects; ONBOARDING done; baseline latency/VRAM numbers; sample corpus chosen (3–5 public documents). |
-| **M1** Grounded knowledge base (A) | Wk 2–4 (14 Sep–9 Oct) | Docling ingest for PDF/DOCX/PPTX; structure-aware chunks; bge-m3 + pgvector; search API + chunk browser; citation objects; retrieval eval (recall@k on 30 hand-labelled questions). |
-| **M2** Course plan (B) | Wk 4–6 (28 Sep–23 Oct) | Brief form; objectives + syllabus (structured JSON); coverage map; review/approve gate UI; plan-quality rubric v1. |
-| **M3** Asset generation (C) | Wk 6–9 (12 Oct–6 Nov) | Slides + notes, quiz + key, tutorial per lesson with citations; citation validator; critique agent + auto-revise; block editor; PPTX + HTML export. **Mid-project demo end of Wk 9.** |
-| **M4** Video & SCORM (C+D) | Wk 9–11 (2–20 Nov) | Script generation; TTS service; ffmpeg pipeline with subtitles; SCORM 1.2 packager validated in an offline SCORM player; learner preview. |
-| **M5** Optimisation & evaluation (D + all) | Wk 10–13 (9 Nov–4 Dec) | Benchmark harness; baseline vs prompt/template tuning, reranker, critique loop, AWQ/FP8 quantisation, **QLoRA adapter** on approved outputs; report tables (grounding, quality, visual usability, latency, VRAM). |
-| **M6** Hardening & delivery | Wk 13–15 (30 Nov–18 Dec) | End-to-end sample course; tests (unit + API + one e2e); API docs; air-gapped deployment guide incl. model weights; evaluation report; final presentation + demo. |
+| Milestone | Target | Exit criteria |
+|---|---|---|
+| Foundation | 7-18 Sep | Docker setup and private credentials; auth/projects; tested startup; all teammates onboarded |
+| Grounded sources | 14 Sep-2 Oct | PDF/DOCX/PPTX parsing, source inspection, stable citations, retrieval baseline over 30 questions |
+| Planning and review | 28 Sep-16 Oct | Brief, objectives, syllabus, coverage map, instructor approval; persisted workflow state and resume |
+| Lesson authoring | 12 Oct-6 Nov | Slides/notes/quiz/tutorial JSON, source validation, bounded critique/revision, instructor editing; mid-project demo |
+| Video and LMS export | 2-20 Nov | Editable PPTX/HTML, approved narration, captioned video and SCORM 1.2 checked in two players |
+| Workflow evaluation | Baselines now; comparisons 9 Nov-4 Dec | Same model/corpus across single-pass, fixed revision and agentic workflows; quality, reviewer effort, latency/calls and memory |
+| Hardening and handover | 30 Nov-18 Dec | Sample course, integration tests, offline deployment evidence, evaluation report and final demonstration |
 
-## Workstream backlogs
+## Implementation status
 
-### A — Ingestion & grounding
-- [x] Docling parser with python-docx / pptx / pypdf fallbacks
-- [x] Structure-aware chunker (heading breadcrumb, page range, tables whole)
-- [x] Local embeddings (bge-m3) + pgvector HNSW
-- [x] Project-scoped semantic search + inspector UI
-- [ ] Hybrid retrieval (BM25 via `pg_trgm`/`tsvector` + vector, RRF fusion)
-- [ ] Reranker (`bge-reranker-v2-m3`)
-- [ ] Figure/diagram captions via Qwen-VL (stretch)
-- [ ] Retrieval eval set + recall@k script in `packages/eval`
+Implemented code: authentication and roles; project management; upload and ingestion queue; document parsers; chunking; BGE-M3 embeddings and pgvector retrieval; source inspector; prompt versions; quiz/critique helpers.
 
-### B — Planning & pedagogy
-- [ ] `generate_plan` handler: objectives → syllabus (prompts exist in `packages/prompts/plan`)
-- [ ] Coverage map (which chunks each lesson draws on; % of each source used)
-- [ ] Plan editor + approve/reject with comments (`reviews` table)
-- [ ] Plan rubric (objective quality, sequencing, duration fit)
+Scaffolded or pending: planning, approval APIs, LangGraph state and interrupts, lesson orchestration, citation enforcement across assets, content editors, rendering, packaging, benchmark runner. Only ingestion currently has a working worker handler.
 
-### C — Asset generation & export
-- [ ] `generate_lesson_assets` handler: slides/notes/quiz/tutorial JSON with `[n]` markers
-- [ ] Citation validator (marker ∈ retrieved set) + `citations` rows
-- [ ] `critique_asset` handler wired to `core/generation/critique`
-- [ ] Block editor (TipTap) with citation chips and critique panel
-- [ ] `render_slides`: python-pptx themes → PPTX; LibreOffice → PDF/PNG
-- [ ] `package_scorm`: HTML shell + imsmanifest (1.2) + API wrapper; validate in two players
+## Workstreams
 
-### D — Video & model optimisation
-- [ ] Script generation (`packages/prompts/slides/script.md`)
-- [ ] TTS service voices vendored; per-segment WAV
-- [ ] `render_video`: ffmpeg slides + audio + SRT
-- [ ] vLLM tuning: prefix caching, speculative decoding, AWQ vs FP8
-- [ ] QLoRA (Unsloth) on instructor-approved outputs + synthetic critiques; serve as LoRA module
-- [ ] LLM-as-judge + human rubric sheets; latency/VRAM capture from vLLM metrics
+- A owns parsing, source metadata, retrieval, citations and retrieval evaluation.
+- B owns planning, coverage, workflow state and instructor review.
+- C owns lesson generation, editing, approved asset formats and LMS packaging.
+- D owns local serving, narration/video and workflow evaluation.
+- Everyone owns tests, docs, integration and human quality review.
 
-## Post-MVP
-1. SCORM 2004 + xAPI statements; learner analytics from the SCORM runtime
-2. Multi-language output
-3. Avatar / talking-head video; open image generation for slide visuals
-4. Multi-reviewer approval workflows, audit log, LDAP/SSO
-5. Model registry UI (swap models/adapters without redeploy)
+Keep the API for requests, PostgreSQL for application data and queued jobs, and the worker for long-running work. Introduce agent orchestration inside the worker. Define how a job yields at an approval pause and resumes from a saved checkpoint; do not keep a worker blocked while waiting for a person.
 
-## Risks
-| Risk | Mitigation |
+## Scope boundaries
+
+The default development target is a local CPU setup. GPU access accelerates later experiments but does not block interface, ingestion or schema work. Validate the actual model/server pair before committing to a model size.
+
+SCORM 2004, avatars, multilingual output, advanced analytics and enterprise SSO are optional follow-ups. Rendering stays deterministic; model decisions are limited to evidence retrieval, content drafting and revision.
+
+## Risks to resolve early
+
+| Risk | Next action |
 |---|---|
-| H100 access delayed | cpu profile from day 1; all model calls behind one `LLM_BASE_URL` |
-| 32B too slow for interactive editing | generation is async via jobs; consider 14B for interactive edits, 32B for batch; speculative decoding |
-| Hallucinated citations | validator rejects unknown markers; critique agent checks claim support; quiz `source_span` must be verbatim |
-| QLoRA shows no gain | it is one arm of the evaluation; a negative result is still a reportable finding |
-| SCORM player quirks | target 1.2 only for MVP; test in two players |
+| New-clone setup differs by machine | Collect a four-machine startup matrix and pin tested dependencies |
+| Citation references can be invalid or lost on re-ingestion | Validate against the exact chunk; add source versions or protective guards |
+| Project/job permissions are inconsistent | Agree the policy and add negative API tests |
+| Agent calls fail or are slow on laptops | Measure structured output/tool calling early; keep a fixed workflow baseline |
+| Approval cannot survive restarts | Specify checkpoint, revision and resume semantics before integrating the editor |
+| Offline caches are incomplete | Rehearse with networking disabled and report parser fallbacks |

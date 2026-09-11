@@ -9,7 +9,7 @@ class Token(BaseModel):
 
 class UserOut(BaseModel):
     id: str
-    email: EmailStr
+    email: str  # Existing local bootstrap accounts may use a reserved .local domain.
     name: str
     role: str
     org_unit: str | None = None

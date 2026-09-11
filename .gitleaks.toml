@@ -6,5 +6,4 @@ useDefault = true
 [allowlist]
 paths = [
   '''\.env\.example$''',
-  '''^docs/''',
 ]

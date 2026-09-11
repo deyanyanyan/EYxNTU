@@ -1,0 +1,61 @@
+name: Checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate isolated local configuration
+        run: sh scripts/setup.sh
+      - name: Check repository identifiers
+        run: bash scripts/scrub-check.sh
+      - name: Validate Compose configuration
+        run: sh scripts/compose.sh config --quiet
+      - name: Build and start application services
+        # No model downloads in this check. Extended ingestion/LLM checks run locally.
+        run: sh scripts/compose.sh up --build --wait --wait-timeout 180 postgres api worker web
+      - name: Python checks
+        run: |
+          sh scripts/compose.sh exec -T api ruff check . --select F
+          sh scripts/compose.sh exec -T api python -m pytest -q
+      - name: Exercise application
+        run: sh scripts/compose.sh exec -T api python /srv/scripts/smoke.py
+      - name: Verify restart
+        run: |
+          sh scripts/compose.sh exec -T api python /srv/scripts/smoke.py --save-restart
+          sh scripts/compose.sh restart api worker
+          sh scripts/compose.sh up --wait --wait-timeout 180 postgres api worker web
+          sh scripts/compose.sh exec -T api python /srv/scripts/smoke.py --verify-restart
+      - name: Logs on failure
+        if: failure()
+        run: sh scripts/compose.sh logs --tail=100 api worker web
+      - name: Stop disposable CI stack
+        if: always()
+        run: sh scripts/compose.sh down

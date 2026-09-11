@@ -11,14 +11,15 @@ x-py-env: &py-env
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    # Tested pg16 image; update the digest deliberately with a migration/startup check.
+    image: pgvector/pgvector@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -32,20 +33,29 @@ services:
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
+      target: api
     <<: *py-env
     restart: unless-stopped
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "127.0.0.1:${API_PORT:-8000}:8000"
     volumes:
       - ../data:/data
     depends_on:
       postgres:
         condition: service_healthy
 
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      start_period: 30s
+      retries: 12
+
   worker:
     build:
       context: ..
-      dockerfile: services/worker/Dockerfile
+      dockerfile: apps/api/Dockerfile
+      target: worker
     <<: *py-env
     restart: unless-stopped
     volumes:
@@ -54,7 +64,7 @@ services:
       postgres:
         condition: service_healthy
       api:
-        condition: service_started
+        condition: service_healthy
 
   web:
     build:
@@ -64,11 +74,19 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     restart: unless-stopped
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 6s
+      start_period: 30s
+      retries: 12
 
   tts:
+    profiles: ["media"]
     build:
       context: ..
       dockerfile: services/tts/Dockerfile
@@ -77,19 +95,25 @@ services:
       TTS_MODEL_DIR: /models
     restart: unless-stopped
     ports:
-      - "8880:8880"
+      - "127.0.0.1:8880:8880"
     volumes:
       - ../data/models/tts:/models
 
   # ---- cpu profile: Ollama ---------------------------------------------------
   ollama:
-    image: ollama/ollama:latest
+    # Tested Ollama 0.34.0 image.
+    image: ollama/ollama@sha256:684d8674b4315fa18f4f0e973a118ec2652ed96f67563277839985175858e0ba
     profiles: ["cpu"]
     restart: unless-stopped
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ../data/models/ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   # ---- gpu profile: vLLM on the H100 -----------------------------------------
   inference:
@@ -107,7 +131,7 @@ services:
       --enable-prefix-caching
       --served-model-name ${VLLM_MODEL} lms-base
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     volumes:
       - ../data:/data
     deploy:

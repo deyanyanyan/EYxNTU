@@ -1,8 +1,8 @@
 # ---- deps ----
 FROM node:20-alpine AS deps
 WORKDIR /srv/web
-COPY apps/web/package.json apps/web/package-lock.json* ./
-RUN npm ci || npm install
+COPY apps/web/package.json apps/web/package-lock.json ./
+RUN npm ci
 
 # ---- dev (used by docker-compose.dev.yml) ----
 FROM deps AS dev
@@ -19,7 +19,7 @@ RUN npm run build
 # ---- runtime ----
 FROM node:20-alpine AS runtime
 WORKDIR /srv/web
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 COPY --from=build /srv/web/.next/standalone ./
 COPY --from=build /srv/web/.next/static ./.next/static
 COPY --from=build /srv/web/public ./public

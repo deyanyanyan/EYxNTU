@@ -1,27 +1,31 @@
-# Evaluation harness (milestone M5)
+# Workflow evaluation
 
-Purpose: produce the model evaluation report comparing baseline and optimised
-configurations across grounding, content quality, visual usability, latency and
-hardware consumption.
+The revised research deliverable compares workflows using pretrained local models. No training or fine-tuning is required. Start baseline collection in [sprint 1](../../docs/SPRINT_01.md); do not postpone evaluation until the final month.
 
-## Planned layout
-```
-packages/eval/
-├── datasets/        fixed source corpus + hand-labelled retrieval questions (recall@k)
-├── configs/         one YAML per configuration: model, quantisation, prompt version, reranker on/off, critique on/off, adapter
-├── judges/          LLM-as-judge prompts (grounding, coherence, pedagogy) run with the local model
-├── rubrics/         human review sheets (5-point) for instructors
-├── run.py           runs the pipeline for a config over the corpus via the API, records outputs + timings
-└── report.py        aggregates scores into the tables used in the final report
-```
+## Sprint 1
 
-## Metrics
-| dimension | automatic | human |
-|---|---|---|
-| grounding | citation validity rate; judge faithfulness score; quiz `source_span` verbatim rate | unsupported-claim count |
-| content quality | judge coherence/pedagogy; objective coverage | rubric |
-| visual usability | slide bullet/word limits, overflow checks on rendered PNGs | rubric |
-| latency | per-stage wall clock from `jobs` timestamps; tokens/s from vLLM metrics | – |
-| hardware | peak VRAM (`nvidia-smi` sampling), RAM, disk of artefacts | – |
+The assigned owner will add:
 
-Each `eval_run` job stores its config hash so results are reproducible.
+- A manifest of 3-5 public documents with origins and reuse permissions.
+- Thirty labelled retrieval questions with expected source passages.
+- A command that records recall@5 and per-query retrieval time.
+- Model/server configuration, machine specifications and structured-output/tool-call results.
+- A repeatable offline/restart check and a short failure analysis.
+
+The application smoke script is an operational check, not a quality benchmark. This directory currently contains the evaluation design; the benchmark runner remains to be implemented.
+
+## Later comparisons
+
+Hold the model, sources and rubric fixed across single-pass generation, fixed critique/revision and a bounded agent workflow. Repeat runs and report variability, failures and review effort.
+
+| Dimension | Evidence |
+|---|---|
+| Grounding | Exact citation validity, unsupported-claim count and human source checks |
+| Coverage and teaching quality | Objective/source coverage plus human rubric |
+| Visual usability | Rendered slide checks and human readability review |
+| Reviewer effort | Edits, rejected assets and review time |
+| Efficiency | Wall-clock time, model/tool calls, token counts where available |
+| Hardware | Peak RAM/VRAM and artifact storage |
+| Reliability | Valid structured output, successful resume, failure/retry counts |
+
+Save small, non-sensitive raw results with configuration hashes and the Git commit. Keep large model files and generated assets outside Git.

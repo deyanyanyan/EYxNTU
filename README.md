@@ -1,66 +1,69 @@
-# lms-platform
+# LMS Studio
 
-Air-gapped, open-source-model prototype that turns enterprise documents (PDF / DOCX / PPTX)
-into grounded, reviewable course packages: learning objectives, syllabus, slides,
-quizzes, tutorials, narrated video lessons, and a SCORM export.
+Local document-to-course authoring prototype for the NTU / EY project. The current working slice is login, projects, document upload, background ingestion and source search. Course planning, approval workflows, lesson generation, video and SCORM export are upcoming work.
 
-Everything runs locally: PostgreSQL + pgvector, a FastAPI backend, a background worker,
-an OpenAI-compatible LLM server (Ollama on laptops, vLLM + Qwen 32B on the H100), a
-local TTS service, and one Next.js workbench with role-based views.
+The revised scope uses pretrained models and agentic workflows; training and fine-tuning are not deliverables. See [scope and roadmap](docs/ROADMAP.md) and [the next two weeks](docs/SPRINT_01.md).
 
+## Start on a teammate's laptop
+
+Install Git and Docker Desktop with **Linux containers** (Docker Engine + Compose v2 on Linux). Start Docker first. An internet connection is needed for the first image builds and model downloads. No host Python, Node, Make or GPU is required.
+
+Clone the GitHub repository, enter its root folder, then run:
+
+**Windows PowerShell**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/setup.ps1
+powershell -ExecutionPolicy Bypass -File scripts/compose.ps1 up --build --wait
+powershell -ExecutionPolicy Bypass -File scripts/compose.ps1 exec -T api python /srv/scripts/smoke.py
 ```
-sources ─► ingest (parse · chunk · embed) ─► plan (objectives · syllabus · approve)
-        ─► generate (slides · notes · quiz · tutorial · critique) ─► render (PPTX · TTS · MP4)
-        ─► package (SCORM 1.2)
+
+**macOS / Linux**
+
+```sh
+sh scripts/setup.sh
+sh scripts/compose.sh up --build --wait
+sh scripts/compose.sh exec -T api python /srv/scripts/smoke.py
 ```
 
-## Quick start (laptop, CPU profile)
+Open http://localhost:3000. Read `DEFAULT_ADMIN_EMAIL` and `DEFAULT_ADMIN_PASSWORD` in your generated `.env` to sign in. Every teammate gets independent local credentials and data. API docs: http://localhost:8000/docs.
 
-```bash
-python scripts/gen_env.py            # writes .env with fresh secrets, prints the admin password
-make up                              # postgres · api · worker · web · tts · ollama
-make pull-model                      # one-time: pull qwen2.5:7b-instruct into Ollama
-```
-Open http://localhost:3000 and sign in with `admin@lms.local` and the printed password.
-API docs: http://localhost:8000/docs
+The first startup verifies the application foundation. For document search and model calls, complete [model preparation and ingestion checks](docs/ONBOARDING.md#prepare-models-and-check-document-search). A healthy application does not mean model weights are already cached.
 
-GPU workstation: `python scripts/gen_env.py --profile gpu` and follow
-`services/inference/README.md` to place the Qwen weights in `data/models/hf`.
+## Current implementation
+
+| Area | Status |
+|---|---|
+| Authentication, projects, uploads, source inspector | Implemented; Docker smoke check included |
+| PDF / DOCX / PPTX / text ingestion, BGE-M3, pgvector search | Implemented; model-dependent smoke check included |
+| Quiz generation and critique | Helper code; not connected to a complete authoring workflow |
+| Plans, lessons, assets, citations, reviews | Database models; workflow APIs and editors pending |
+| LangGraph / LangChain agent orchestration | Planned |
+| PPTX / HTML / video / SCORM export | Planned; optional TTS service skeleton exists |
+| Evaluation report | Planned; baseline collection starts in sprint 1 |
+
+## Team workflow
+
+1. Pull changes and create a feature branch.
+2. Run startup and smoke checks. Keep existing `.env` and Docker volumes.
+3. Develop one small change; include relevant tests and update docs.
+4. Open a PR with a problem statement, resulting behavior and verification results.
+5. One teammate reviews it; merge after CI passes. Integrate and demo each Friday.
+
+GitHub carries source and configuration templates. Each teammate builds locally. Never commit `.env`, uploaded documents, generated courses or model weights.
 
 ## Repository map
 
-| path | what |
+| Location | Purpose |
 |---|---|
-| `apps/api` | FastAPI: auth/RBAC, projects, sources, retrieval, jobs, prompt versions. Alembic migrations. |
-| `apps/web` | Next.js 15 workbench (instructor / admin / learner views). |
-| `services/worker` | Claims jobs from Postgres and runs ingest/generate/render/package handlers. |
-| `services/tts` | OpenAI-compatible `/v1/audio/speech` wrapper over Piper (cpu) / Kokoro (gpu). |
-| `services/inference` | How the LLM is served (Ollama / vLLM). No code. |
-| `packages/prompts` | Versioned, domain-neutral prompt templates (file defaults). |
-| `packages/eval` | Benchmark harness for the model evaluation report. |
-| `infra` | docker compose (base, dev overrides), Postgres init. |
-| `docs` | Architecture, roadmap, onboarding, environment, ADRs. |
-| `scripts` | `gen_env.py`, `scrub-check` (denylist scan). |
-| `data` | Runtime volume: uploads, artifacts, model weights. Git-ignored. |
+| `apps/api` | FastAPI, models, migrations, auth, retrieval and generation helpers |
+| `apps/web` | Next.js instructor workbench and admin screens |
+| `services/worker` | PostgreSQL job consumer; built from the shared API Dockerfile |
+| `services/tts` | Optional speech service, enabled with the `media` profile |
+| `packages/prompts` | Versioned prompt templates |
+| `packages/eval` | Evaluation plan and future benchmark tooling |
+| `infra` | Compose configuration and database initialization |
+| `scripts` | Docker setup wrappers and smoke checks |
+| `data` | Local uploads, artifacts and model caches; excluded from Git |
 
-## Development
-
-```bash
-make dev        # hot reload for api, worker and web
-make test       # api unit tests (no database needed)
-make lint
-make scrub      # denylist + secret scan (also runs as a pre-commit hook)
-```
-Install hooks once: `pip install pre-commit && pre-commit install`.
-
-## Docs
-- [Architecture](docs/ARCHITECTURE.md)
-- [Roadmap and milestones](docs/ROADMAP.md)
-- [Onboarding](docs/ONBOARDING.md)
-- [Environment variables](docs/ENVIRONMENT.md)
-- [ADRs](docs/adr)
-
-## Security posture
-- No outbound network at runtime. Model weights and fonts are vendored into `data/` and `apps/web/public/fonts`.
-- `.env` is never committed; `scripts/gen_env.py` generates secrets locally.
-- `scripts/scrub-check` blocks commits containing identifiers from any prior project.
+[Onboarding and troubleshooting](docs/ONBOARDING.md) · [Environment](docs/ENVIRONMENT.md) · [Architecture](docs/ARCHITECTURE.md) · [Two-week deliverable](docs/SPRINT_01.md) · [Verification record](docs/VERIFICATION.md)

@@ -65,7 +65,7 @@ export default function LoginPage() {
           <p className="max-w-md text-sm opacity-80">Grounded objectives, slides, quizzes and narrated lessons, generated locally and reviewed by you before anything ships.</p>
           <p className="font-mono text-xs opacity-60">ingest → plan → generate → render → package</p>
         </div>
-        <p className="text-xs opacity-60">Runs fully offline. No data leaves this machine.</p>
+        <p className="text-xs opacity-60">Local models. Source-grounded learning.</p>
       </div>
       <div className="flex items-center justify-center p-8">
         <div className="w-full max-w-sm space-y-6">

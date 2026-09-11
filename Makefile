@@ -7,7 +7,7 @@ env:            ## create .env with fresh secrets (cpu profile)
 	python scripts/gen_env.py
 
 up:             ## build + start the full stack (profile from .env)
-	$(COMPOSE) up --build -d
+	$(COMPOSE) up --build --wait
 
 dev:            ## start with hot reload
 	$(DEV) up --build
@@ -31,10 +31,10 @@ pull-model:     ## cpu profile: pull the default Ollama model once
 	$(COMPOSE) exec ollama ollama pull $${LLM_MODEL:-qwen2.5:7b-instruct}
 
 test:           ## unit tests (no database needed)
-	cd apps/api && python -m pytest -q
+	$(COMPOSE) exec -T api python -m pytest -q
 
 lint:
-	cd apps/api && ruff check .
+	$(COMPOSE) exec -T api ruff check . --select F
 	cd apps/web && npm run lint
 
 scrub:          ## denylist + secrets scan

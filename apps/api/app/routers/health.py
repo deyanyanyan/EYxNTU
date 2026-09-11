@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.config import settings
@@ -15,4 +16,7 @@ def health():
             c.execute(text("select 1"))
     except Exception:
         db_ok = False
-    return {"status": "ok" if db_ok else "degraded", "db": db_ok, "llm_model": settings.llm_model, "embedding_model": settings.embedding_model}
+    return JSONResponse(
+        status_code=200 if db_ok else 503,
+        content={"status": "ok" if db_ok else "degraded", "db": db_ok, "llm_model": settings.llm_model, "embedding_model": settings.embedding_model},
+    )
