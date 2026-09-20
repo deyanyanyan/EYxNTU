@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A local LMS authoring prototype using pretrained Qwen, source retrieval and proposed LangChain/LangGraph agents, with instructor approval, delivery plan and workflow diagrams.">
+  <meta name="description" content="A local LMS authoring prototype whose contribution is an agentic evaluation layer: every generated step is checked against its source evidence, revised within limits, or escalated to an instructor.">
   <title>Local LMS Content Generation Project Brief</title>
   <style>
     :root {
@@ -13,6 +13,8 @@
       --accent: #17675d;
       --line: #d4dedd;
       --soft: #eef5f3;
+      --gate: #8a4f1d;
+      --gate-soft: #fbf3e9;
     }
 
     * { box-sizing: border-box; }
@@ -100,10 +102,51 @@
       top: 18px;
       color: var(--accent);
     }
+    .flow li.gated { background: var(--gate-soft); box-shadow: inset 0 0 0 1px #e2cdb2; }
     .flow strong { display: block; font-size: 11.5px; }
     .flow span { display: block; margin-top: 3px; color: var(--muted); font-size: 10.5px; }
+    .flow .gate-tag {
+      display: inline-block;
+      margin-top: 4px;
+      color: var(--gate);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
     .small { font-size: 11.5px; line-height: 1.4; }
     .muted { color: var(--muted); }
+
+    .claim {
+      margin-top: 10px;
+      padding: 11px 14px;
+      background: var(--gate-soft);
+      border-left: 3px solid var(--gate);
+      border-radius: 0 4px 4px 0;
+    }
+    .claim p { font-size: 12.5px; line-height: 1.45; }
+    .claim p + p { margin-top: 6px; }
+    .claim strong { color: #000; }
+
+    .gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 9px; }
+    .gate-card { padding: 9px 11px; border: 1px solid var(--line); border-radius: 4px; }
+    .gate-card h3 { color: var(--accent); font-size: 12px; }
+    .gate-card p { font-size: 11px; line-height: 1.38; color: var(--muted); }
+    .gate-card .check {
+      display: block;
+      margin-top: 5px;
+      padding-top: 5px;
+      border-top: 1px dotted var(--line);
+      color: var(--gate);
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .honest { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px; }
+    .honest h3 { font-size: 12px; }
+    .honest p { font-size: 11px; line-height: 1.4; color: var(--muted); }
+
     table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11.7px; line-height: 1.34; }
     th, td { padding: 8px 10px; border: 1px solid var(--line); text-align: left; vertical-align: middle; }
     thead th { background: #233f46; color: #fff; font-size: 10px; letter-spacing: 0.55px; text-transform: uppercase; }
@@ -113,6 +156,7 @@
     .stack col:nth-child(2) { width: 32%; }
     .stack col:nth-child(3) { width: 48%; }
     .stack th, .stack td { padding-top: 5px; padding-bottom: 5px; }
+    tr.highlight td, tr.highlight th { background: var(--gate-soft); }
     .support {
       padding: 12px 14px;
       background: var(--soft);
@@ -171,6 +215,7 @@
     .diagram-legend span { display: inline-flex; align-items: center; gap: 6px; }
     .legend-line { display: inline-block; width: 22px; border-top: 2px solid var(--accent); }
     .legend-line.planned { border-top-style: dashed; border-color: #8a652b; }
+    .legend-swatch { display: inline-block; width: 13px; height: 13px; border-radius: 3px; border: 1px solid #e2cdb2; background: var(--gate-soft); }
     .diagram-figure { margin: 10px 0 0; }
     .diagram-scroll { width: 100%; overflow-x: auto; }
     .architecture-diagram { display: block; width: 96%; height: auto; margin-inline: auto; }
@@ -179,14 +224,20 @@
     .architecture-diagram .node-tech { font-size: 11.5px; font-weight: 600; fill: var(--accent); }
     .architecture-diagram .node-status { font-size: 10px; font-weight: 600; fill: var(--muted); }
     .architecture-diagram .node-status.pending { fill: #785522; }
+    .architecture-diagram .band-label { font-size: 10px; font-weight: 700; letter-spacing: 1.1px; fill: var(--muted); }
     .architecture-diagram .edge-label { font-size: 11px; fill: var(--muted); }
+    .architecture-diagram .edge-label.gate { fill: var(--gate); font-weight: 600; }
     .architecture-diagram .node-box { fill: #fff; stroke: #a9c2bd; stroke-width: 1.3; }
     .architecture-diagram .node-soft { fill: var(--soft); }
     .architecture-diagram .node-planned { fill: #fcf8f1; stroke: #ad8d60; stroke-dasharray: 5 4; }
     .architecture-diagram .node-review { fill: #edf2fa; stroke: #a3b5d0; }
+    .architecture-diagram .node-gate { fill: var(--gate-soft); stroke: var(--gate); stroke-width: 1.6; }
+    .architecture-diagram .gate-title { font-size: 13px; font-weight: 700; fill: #000; }
+    .architecture-diagram .gate-tech { font-size: 11px; font-weight: 600; fill: var(--gate); }
     .architecture-diagram .boundary { fill: #fafcfc; stroke: #b8cbc7; stroke-dasharray: 5 5; }
     .architecture-diagram .connector { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
     .architecture-diagram .connector.pending { stroke: #8a652b; stroke-dasharray: 5 4; }
+    .architecture-diagram .connector.gate { stroke: var(--gate); stroke-width: 1.6; }
     .architecture-diagram .arrow-fill { fill: var(--accent); }
     .architecture-diagram .arrow-fill.pending { fill: #8a652b; }
     .architecture-diagram .approval-rule { stroke: #c8d4e4; stroke-width: 1; }
@@ -220,9 +271,10 @@
       .eyebrow { font-size: 9px; letter-spacing: 0.6px; }
       .eyebrow span:last-child { text-align: right; }
       .flow { grid-template-columns: 1fr; gap: 8px; }
-      .flow li { display: flex; align-items: baseline; gap: 10px; padding: 10px; }
+      .flow li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 10px; }
       .flow span { margin-top: 0; }
       .flow li:not(:last-child)::after { content: none; }
+      .gates, .honest { grid-template-columns: 1fr; gap: 9px; }
       table { font-size: 11px; overflow-wrap: anywhere; }
       th, td { padding: 7px 6px; }
       thead th { font-size: 9px; }
@@ -238,383 +290,483 @@
   </style>
 </head>
 <body>
+
   <div class="toolbar" aria-label="Document controls">
     <span>Brief + diagrams · Four A4 pages · Print at 100% scale, headers and footers off</span>
     <button type="button" onclick="window.print()">Print / Save PDF</button>
   </div>
+
   <nav class="document-nav" aria-label="Jump to a page">
     <a href="#project-title">1 · Project brief</a>
     <a href="#plan-title">2 · Delivery plan</a>
     <a href="#services-title">3 · System diagram</a>
-    <a href="#generation-title">4 · Workflow diagram</a>
+    <a href="#workflow-title">4 · Workflow diagram</a>
   </nav>
 
-  <main>
-    <article class="page" aria-labelledby="project-title">
-      <div class="page-body">
-        <header>
-          <div class="eyebrow"><span>NTU · EY Tech Consulting</span><span>Project brief · Proposed plan</span></div>
-          <h1 id="project-title">Local LMS<br>Content Generation</h1>
-          <p class="intro">We are building a local AI system that turns documents into teaching materials for a learning management system (LMS). Pretrained Qwen powers agents that find evidence, draft and revise content. Instructors approve the results. No model training or fine-tuning is required.</p>
-          <p class="meta"><strong>4 students</strong> &nbsp;·&nbsp; <strong>15 weeks</strong> &nbsp;·&nbsp; 7 September–18 December 2026 &nbsp;·&nbsp; Prototype and evaluation</p>
-        </header>
+  <!-- ============================ PAGE 1 ============================ -->
+  <article class="page" aria-labelledby="project-title">
+    <div class="page-body">
+      <div class="eyebrow"><span>NTU · EY Tech Consulting</span><span>Project brief · revised 21 September 2026</span></div>
 
-        <section aria-labelledby="workflow-title">
-          <h2 id="workflow-title">What the system will do</h2>
-          <ol class="flow">
-            <li><strong>1 · Upload</strong><span>PDF, Word, slides</span></li>
-            <li><strong>2 · Find evidence</strong><span>Search source text</span></li>
-            <li><strong>3 · Plan course</strong><span>Instructor approves</span></li>
-            <li><strong>4 · Create lessons</strong><span>Review and edit</span></li>
-            <li><strong>5 · Export</strong><span>Slides, video, LMS</span></li>
-          </ol>
-          <p class="small">Our contribution is the agentic authoring workflow: source-grounded planning, lesson creation and review. Uploaded documents supply evidence through retrieval (RAG); model weights stay unchanged.</p>
-        </section>
+      <h1 id="project-title">Local LMS Content Generation</h1>
+      <p class="intro">A local AI system that turns documents into teaching materials — and, unlike a generator alone, <strong>checks its own work at every step before the course moves forward</strong>. Pretrained Qwen drafts each artefact from retrieved source evidence; an evaluation layer scores it against that evidence, sends weak output back for bounded revision, and escalates what it cannot repair to an instructor with the reason attached.</p>
+      <p class="meta"><strong>4 students</strong> &nbsp;·&nbsp; <strong>15 weeks</strong> &nbsp;·&nbsp; 7 September–18 December 2026 &nbsp;·&nbsp; Prototype and evaluation &nbsp;·&nbsp; No model training or fine-tuning</p>
 
-        <section aria-labelledby="stack-title">
-          <h2 id="stack-title">Our technology stack in plain language</h2>
-          <table class="stack" aria-labelledby="stack-title">
-            <colgroup><col><col><col></colgroup>
-            <thead><tr><th scope="col">Part</th><th scope="col">Technology</th><th scope="col">What it does</th></tr></thead>
-            <tbody>
-              <tr><th scope="row">Web interface</th><td>Next.js, React, TypeScript<br>Tailwind CSS</td><td>The screens for uploading files, reviewing lessons and tracking progress.</td></tr>
-              <tr><th scope="row">Application logic</th><td>Python, FastAPI<br>Background worker</td><td>Handles requests and queued jobs; runs agent workflows and export tasks in the background.</td></tr>
-              <tr><th scope="row">Document search</th><td>Docling, BGE-M3<br>RAG</td><td>Reads documents and finds relevant passages. RAG means giving the AI source material before it writes.</td></tr>
-              <tr><th scope="row">Pretrained model</th><td>Qwen + Ollama / vLLM</td><td>Runs existing weights to draft, review and choose tools. Candidates: Qwen2.5 7B for laptops; Qwen3 32B for GPU evaluation.</td></tr>
-              <tr><th scope="row">Agentic workflows<br><span class="muted">Proposed</span></th><td>LangChain + LangGraph<br>Python libraries</td><td>LangChain connects Qwen and tools. LangGraph controls routing, revision loops, saved progress and instructor approval pauses.</td></tr>
-              <tr><th scope="row">Data storage</th><td>PostgreSQL + pgvector<br>Local file storage</td><td>Stores projects, source references and job progress; supports search by meaning.</td></tr>
-              <tr><th scope="row">Teaching outputs</th><td>python-pptx, LibreOffice<br>Piper / Kokoro, FFmpeg</td><td>Planned pipeline for editable slides, spoken narration and captioned video; HTML and SCORM 1.2 for LMS import.</td></tr>
-              <tr><th scope="row">Local deployment</th><td>Docker Compose</td><td>Packages the services together. Target: offline operation after models, voices and dependencies are prepared.</td></tr>
-            </tbody>
-          </table>
-          <p class="small muted" style="margin-top: 7px;">An agent chooses its next tool from evidence and feedback, within set limits. 7B / 32B indicates model size. SCORM is a course package an LMS can import.</p>
-        </section>
+      <section aria-labelledby="workflow-title">
+        <h2 id="workflow-title">What the system will do</h2>
+        <ol class="flow">
+          <li><strong>1 · Upload</strong><span>PDF, Word, slides</span></li>
+          <li><strong>2 · Find evidence</strong><span>Search source text</span></li>
+          <li class="gated"><strong>3 · Plan course</strong><span>Objectives and syllabus</span><span class="gate-tag">Evaluated</span></li>
+          <li class="gated"><strong>4 · Create lessons</strong><span>Slides, notes, quizzes</span><span class="gate-tag">Evaluated</span></li>
+          <li><strong>5 · Export</strong><span>Slides, video, LMS</span></li>
+        </ol>
 
-        <section class="support" aria-labelledby="support-title">
-          <h2 id="support-title">Support requested from the school</h2>
-          <p class="small"><strong>GPU access:</strong> request shared school GPU time for running pretrained models and evaluating agent workflows. An H100 80 GB is a preferred test resource; the minimum hardware depends on measured speed and memory needs.</p>
-          <p class="small"><strong>Setup and guidance:</strong> agree GPU booking time, storage, IT support for approved downloads and setup, and an instructor reviewer. Continue laptop development with the smaller model while access is arranged.</p>
-        </section>
+        <div class="claim">
+          <p><strong>Where our contribution sits.</strong> EY already has a prototype that runs steps 1 to 5 end to end. Producing a course is therefore not our contribution; producing a course whose every step has been <strong>checked against its sources and recorded</strong> is. Steps 3 and 4 do not advance on the model's say-so — each generated artefact must pass an evaluation gate first.</p>
+          <p>The gate returns one of three outcomes: <strong>pass</strong>, <strong>revise</strong> within a fixed retry budget, or <strong>escalate</strong> to the instructor with the failing check named. Every outcome is stored, so a finished course carries an auditable record of why each part of it was accepted.</p>
+        </div>
+      </section>
 
-        <p class="status small"><strong>Current stage:</strong> docs describe login, uploads, search, jobs and quiz/critique helpers. LangChain/LangGraph integration, complete authoring, rendering, LMS export and evaluation are proposed work, still to be implemented and tested.</p>
-      </div>
-      <footer><span>Scope revised 11 September 2026: pretrained models + agentic workflows. Implementation status is based on project docs.</span><span class="page-number">01 / 04</span></footer>
-    </article>
-
-    <article class="page" aria-labelledby="plan-title">
-      <div class="page-body">
-        <header>
-          <div class="eyebrow"><span>Delivery and team plan</span><span>September–December 2026</span></div>
-          <h1 class="second-title" id="plan-title">How we will deliver it</h1>
-          <p class="intro">Build one complete course workflow using pretrained models, then measure whether agent decisions improve it. The revised 15-week plan replaces training work with agent integration and evaluation; phases overlap.</p>
-        </header>
-
-        <section aria-labelledby="timeline-title">
-          <h2 id="timeline-title">Rough timeline and checkpoints</h2>
-          <table class="timeline" aria-labelledby="timeline-title">
-            <colgroup><col><col><col></colgroup>
-            <thead><tr><th scope="col">When in 2026</th><th scope="col">Focus and lead</th><th scope="col">Checkpoint</th></tr></thead>
-            <tbody>
-              <tr><th scope="row">Weeks 1–2<span class="dates">7–18 Sep</span></th><td><strong>Set up the foundation</strong><br><span class="owner">Everyone · D coordinates GPU</span></td><td>Choose 3–5 public documents. Test local Qwen tool calls and structured output through LangChain; record speed and memory use.</td></tr>
-              <tr><th scope="row">Weeks 2–4<span class="dates">14 Sep–2 Oct</span></th><td><strong>Make sources searchable</strong><br><span class="owner">A</span></td><td>Read PDF, Word and slides; preserve references; check retrieval against 30 manually labelled questions.</td></tr>
-              <tr><th scope="row">Weeks 4–6<span class="dates">28 Sep–16 Oct</span></th><td><strong>Build the planning agent</strong><br><span class="owner">B</span></td><td>Use LangGraph to draft objectives/syllabus, check coverage and retrieve gaps. Save state and pause/resume for instructor approval.</td></tr>
-              <tr><th scope="row">Weeks 6–9<span class="dates">12 Oct–6 Nov</span></th><td><strong>Build the lesson agent</strong><br><span class="owner">C · A/B support</span></td><td>Generate materials; choose retrieval or revision from critique. Cap retries, preserve citations and support editing. Demo: 6 Nov.</td></tr>
-              <tr><th scope="row">Weeks 9–11<span class="dates">2–20 Nov</span></th><td><strong>Add video and LMS export</strong><br><span class="owner">C + D</span></td><td>Narrated, captioned videos and a SCORM 1.2 course; test import and playback in two compatible players.</td></tr>
-              <tr><th scope="row">Weeks 10–13<span class="dates">9 Nov–4 Dec</span></th><td><strong>Evaluate the workflow</strong><br><span class="owner">D · Everyone evaluates</span></td><td>Hold model and sources fixed. Compare single-pass, fixed critique/revision and agentic runs for quality, reviewer effort and compute.</td></tr>
-              <tr><th scope="row">Weeks 13–15<span class="dates">30 Nov–18 Dec</span></th><td><strong>Test and hand over</strong><br><span class="owner">Everyone</span></td><td>Complete the sample course, offline deployment test, evaluation report, documentation and final demonstration.</td></tr>
-            </tbody>
-          </table>
-        </section>
-
-        <section aria-labelledby="team-title">
-          <h2 id="team-title">Proposed delegation across four students</h2>
-          <p class="small muted team-intro">A–D are workstream labels; student names are to be assigned. Each owner builds the relevant backend and interface, with peer review.</p>
-          <div class="team">
-            <div class="person"><h3><span class="letter">A</span>Documents and grounding</h3><p>Own parsing, search tools, citation checks and retrieval tests. Give agents project-scoped evidence with stable references.</p></div>
-            <div class="person"><h3><span class="letter">B</span>Planning agent and review</h3><p>Own the LangGraph workflow, planning agent, coverage checks, saved state and approval screens. Hand C an approved plan.</p></div>
-            <div class="person"><h3><span class="letter">C</span>Lesson agent and export</h3><p>Own lesson generation, critique/revision tools, editing and LMS packaging. Give D approved slides and narration scripts.</p></div>
-            <div class="person"><h3><span class="letter">D</span>Video and workflow evaluation</h3><p>Own pretrained Qwen serving, narration, video and agent benchmarks. Coordinate GPU use and local execution logs.</p></div>
+      <section aria-labelledby="checks-title">
+        <h2 id="checks-title">What each gate checks</h2>
+        <div class="gates">
+          <div class="gate-card">
+            <h3>Grounding</h3>
+            <p>Every factual claim traces to a retrieved passage from the uploaded documents, with a stable reference back to it.</p>
+            <span class="check">Anchored in code: each claim must quote a span found verbatim in the retrieved text, checked without the model.</span>
           </div>
-          <p class="small team-note"><strong>Shared routine:</strong> integrate and demo every Friday. Everyone contributes tests, documentation and quality reviews; agree interfaces early so the four parts connect.</p>
-        </section>
+          <div class="gate-card">
+            <h3>Coherence</h3>
+            <p>The artefact matches the approved plan — its stated objective, its position in the syllabus, and the lessons around it.</p>
+            <span class="check">Anchored in code: objective and lesson references must resolve to the approved plan.</span>
+          </div>
+          <div class="gate-card">
+            <h3>Pedagogy</h3>
+            <p>Objectives carry a stated level, assessments test what the lesson actually taught, and difficulty is declared rather than assumed.</p>
+            <span class="check">Anchored in code: questions may not leak their answer; every quiz item must map to a taught objective.</span>
+          </div>
+        </div>
+      </section>
 
-        <section class="delivery" aria-label="Final deliverables and success measures">
+      <section aria-labelledby="honest-title">
+        <h2 id="honest-title">How we keep the evaluation honest</h2>
+        <p class="small">A model scoring its own output will tend to approve it. The evaluation layer is only worth building if we can show it is measuring something real, so three safeguards are part of the deliverable rather than added at the end.</p>
+        <div class="honest">
           <div>
-            <h2>What we will hand over</h2>
-            <ul class="small">
-              <li>A local prototype and sample course: syllabus, lessons, editable slides, exercises, video and LMS package.</li>
-              <li>A baseline-versus-agentic workflow evaluation report using pretrained models.</li>
-              <li>Code, tests, API and deployment guides, final presentation and demonstration.</li>
-            </ul>
+            <h3>1 · A deterministic check under every gate</h3>
+            <p>Each dimension has at least one rule evaluated in ordinary code, not by the model. These cannot be talked around, and they fail loudly. The verbatim-quote check already runs in the quiz generator.</p>
           </div>
           <div>
-            <h2>How we will judge success</h2>
-            <p class="small">Use the same model, sources and rubric across repeated runs. Measure source support, coverage, teaching quality, readability, reviewer edits, time, model calls and GPU memory. Test approval/resume and offline operation.</p>
-            <p class="small scope-note"><strong>Scope:</strong> pretrained models; no training or fine-tuning deliverable. Avatars, extra languages and SCORM 2004 remain optional.</p>
+            <h3>2 · An instructor agreement study</h3>
+            <p>An instructor scores a sample of artefacts blind. We report how closely the agent's scores track theirs. Weak agreement is reported as a finding, not hidden — it tells us which checks are worth keeping.</p>
           </div>
-        </section>
+          <div>
+            <h3>3 · A like-for-like comparison</h3>
+            <p>Same model, same sources, same rubric across three workflows: single pass, fixed revision, and gated agentic. If the gates do not improve quality or reduce reviewer effort, the report says so.</p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="stack-title">
+        <h2 id="stack-title">Our technology stack in plain language</h2>
+        <table class="stack" aria-labelledby="stack-title">
+          <colgroup><col><col><col></colgroup>
+          <thead><tr><th>Part</th><th>Technology</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><th>Web interface</th><td>Next.js, React, TypeScript<br>Tailwind CSS</td><td>The screens for uploading files, reviewing lessons, and seeing why each artefact passed or failed its checks.</td></tr>
+            <tr><th>Application logic</th><td>Python, FastAPI<br>Background worker</td><td>Handles requests and queued jobs; runs agent workflows and export tasks in the background.</td></tr>
+            <tr><th>Document search</th><td>Docling, BGE-M3<br>RAG</td><td>Reads documents and finds relevant passages. RAG means giving the AI source material before it writes.</td></tr>
+            <tr><th>Pretrained model</th><td>Qwen + Ollama / vLLM</td><td>Runs existing weights to draft, review and choose tools. Qwen2.5 7B verified on laptops; Qwen3 32B is the GPU candidate.</td></tr>
+            <tr class="highlight"><th>Evaluation layer</th><td>Python validators<br>+ critique prompts</td><td><strong>Our contribution.</strong> Scores each artefact for grounding, coherence and pedagogy, decides pass / revise / escalate, and records the reason and evidence for every decision.</td></tr>
+            <tr><th>Agentic workflows</th><td>LangChain + LangGraph<br>Python libraries</td><td>LangChain connects Qwen and tools. LangGraph controls routing, revision limits, saved progress and instructor approval pauses.</td></tr>
+            <tr><th>Data storage</th><td>PostgreSQL + pgvector<br>Local file storage</td><td>Stores projects, source references, job progress and evaluation records; supports search by meaning.</td></tr>
+            <tr><th>Teaching outputs</th><td>python-pptx, LibreOffice<br>Piper / Kokoro, FFmpeg</td><td>Editable slides, spoken narration and captioned video; HTML and SCORM 1.2 for LMS import. Reduced scope — see delivery plan.</td></tr>
+            <tr><th>Local deployment</th><td>Docker Compose</td><td>Packages the services together. Target: offline operation after models, voices and dependencies are prepared.</td></tr>
+          </tbody>
+        </table>
+        <p class="small muted" style="margin-top:6px;">An agent chooses its next tool from evidence and feedback, within set limits. 7B / 32B indicates model size. SCORM is a course package an LMS can import.</p>
+      </section>
+
+      <section class="support" aria-labelledby="support-title">
+        <h2 id="support-title">Support requested from the school</h2>
+        <p class="small"><strong>GPU access:</strong> evaluating at every step multiplies model calls roughly three- to four-fold over single-pass generation. Measured on a 20-CPU laptop, one structured generation takes 29 seconds and a long evidence-backed call 177 seconds, so a full gated course runs into hours. We request shared school GPU time; an H100 80&nbsp;GB is the preferred test resource. The minimum viable hardware is one of the things the evaluation will establish.</p>
+        <p class="small"><strong>Setup and guidance:</strong> agree GPU booking time, storage, IT support for approved downloads, and — importantly for the agreement study — <strong>an instructor reviewer willing to score a sample of generated material</strong>. Laptop development continues with the smaller model while access is arranged.</p>
+        <p class="small"><strong>From EY:</strong> the output format of the existing prototype, so the evaluation layer can be demonstrated against real generator output rather than only our own.</p>
+      </section>
+
+      <div class="status">
+        <p class="small muted"><strong>Current stage.</strong> Verified working: login, uploads, document parsing, passage search with citations, background jobs, and local Qwen serving — including tool calling and schema-valid structured output, confirmed 20 September 2026. Not yet built: the evaluation layer, the planning and lesson agents, LangGraph orchestration, rendering, LMS export and the comparison study.</p>
       </div>
-      <footer>
-        <span>Adapted from the <a href="ROADMAP.md">roadmap</a>, <a href="ARCHITECTURE.md">architecture</a> and <a href="ONBOARDING.md">team workstreams</a>. This brief reflects the revised scope; older docs may still mention training.<br>Indicative timeline based on a 7 Sep start. Hardware access and named owners remain to be confirmed.</span>
-        <span class="page-number">02 / 04</span>
-      </footer>
-    </article>
+    </div>
+    <footer><span>Scope revised 21 September 2026 following EY feedback: contribution narrowed from end-to-end generation to step-wise agentic evaluation.</span><span class="page-number">01 / 04</span></footer>
+  </article>
 
-    <article class="page diagram-page" aria-labelledby="services-title">
-      <div class="page-body">
-        <header>
-          <div class="eyebrow"><span>Technology stack diagram</span><span>The services and their connections</span></div>
-          <h1 class="second-title" id="services-title">How the system fits together</h1>
-          <p class="intro">Proposed design: LangChain connects pretrained Qwen to tools; LangGraph manages the agent workflow inside the Python worker. PostgreSQL stores jobs and workflow checkpoints. Instructors approve plans and materials; models, tools and execution logs stay local.</p>
-        </header>
-        <div class="diagram-legend" aria-label="Diagram legend">
-          <span><i class="legend-line" aria-hidden="true"></i>Foundation connection</span>
-          <span><i class="legend-line planned" aria-hidden="true"></i>Planned integration</span>
-          <span>Code exists ≠ full deployment verified</span>
-        </div>
-        <p class="mobile-diagram-hint">Swipe the diagram sideways to read all components.</p>
-        <figure class="diagram-figure">
-          <div class="diagram-scroll" role="region" aria-label="System architecture diagram" tabindex="0">
-            <svg class="architecture-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 730" role="img" aria-labelledby="system-svg-title system-svg-description">
-              <title id="system-svg-title">Local LMS service architecture</title>
-              <desc id="system-svg-description">An instructor uses a Next.js web interface, which sends requests to FastAPI and receives results and progress. FastAPI stores records and queued jobs in PostgreSQL with pgvector, and uploads in local file storage. A Python worker claims jobs and saves their status in the database. Within planning and lesson jobs, bounded agents use retrieval, generation, validation and critique tools under retry limits and instructor approval gates. Planned worker integrations call either Ollama with Qwen2.5 7B or vLLM with Qwen3 32B, call Piper or Kokoro for narration, and save generated files. Docker Compose manages the local services.</desc>
-              <defs>
-                <marker id="system-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="arrow-fill" d="M 0 0 L 10 5 L 0 10 Z"/></marker>
-                <marker id="system-pending-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="arrow-fill pending" d="M 0 0 L 10 5 L 0 10 Z"/></marker>
-              </defs>
-              <rect class="boundary" x="3" y="71" width="694" height="653" rx="10"/>
-              <text class="node-tech" x="17" y="92">LOCAL SERVICES</text>
-              <text class="edge-label" x="17" y="109">Docker Compose starts</text>
-              <text class="edge-label" x="17" y="125">and connects the services</text>
+  <!-- ============================ PAGE 2 ============================ -->
+  <article class="page" aria-labelledby="plan-title">
+    <div class="page-body">
+      <div class="eyebrow"><span>Delivery and team plan</span><span>September–December 2026</span></div>
 
-              <path class="connector" d="M 345 54 V 90" marker-start="url(#system-arrow)" marker-end="url(#system-arrow)"/>
-              <path class="connector" d="M 345 170 V 207" marker-start="url(#system-arrow)" marker-end="url(#system-arrow)"/>
-              <text class="edge-label" x="356" y="191">Requests ↔ results / progress</text>
-              <path class="connector" d="M 345 298 V 340" marker-start="url(#system-arrow)" marker-end="url(#system-arrow)"/>
-              <text class="edge-label" x="356" y="323">Read / save data + queue jobs</text>
-              <path class="connector" d="M 345 436 V 478" marker-start="url(#system-arrow)" marker-end="url(#system-arrow)"/>
-              <text class="edge-label" x="356" y="460">Claim jobs ↔ save updates</text>
-              <path class="connector" d="M 224 251 H 187" marker-start="url(#system-arrow)" marker-end="url(#system-arrow)"/>
-              <text class="edge-label" x="205" y="242" text-anchor="middle">Files</text>
-              <path class="connector" d="M 70 335 V 524 H 224" marker-end="url(#system-arrow)"/>
-              <text class="edge-label" x="84" y="489">Read source documents</text>
-              <path class="connector pending" d="M 224 553 H 45 V 335" marker-end="url(#system-pending-arrow)"/>
-              <text class="edge-label" x="84" y="544">Save generated files</text>
-              <path class="connector pending" d="M 466 524 H 510" marker-start="url(#system-pending-arrow)" marker-end="url(#system-pending-arrow)"/>
-              <text class="edge-label" x="488" y="513" text-anchor="middle">AI</text>
-              <path class="connector pending" d="M 345 573 V 624" marker-start="url(#system-pending-arrow)" marker-end="url(#system-pending-arrow)"/>
-              <text class="edge-label" x="356" y="601">Script ↔ speech audio</text>
+      <h1 id="plan-title" class="second-title">How we will deliver it</h1>
+      <p class="intro">Build one complete course workflow using pretrained models, put an evaluation gate on every step of it, then measure whether those gates improve the result. Phases overlap.</p>
 
-              <g>
-                <rect class="node-box node-review" x="224" y="9" width="242" height="45" rx="6"/>
-                <text class="node-title" x="345" y="29" text-anchor="middle">Instructor / administrator</text>
-                <text x="345" y="45" text-anchor="middle">Uses a browser</text>
-              </g>
-              <g>
-                <rect class="node-box node-soft" x="224" y="90" width="242" height="80" rx="6"/>
-                <text class="node-title" x="238" y="111">Web interface</text>
-                <text class="node-tech" x="238" y="130">Next.js · React · TypeScript · Tailwind</text>
-                <text x="238" y="148">Uploads, review screens and progress</text>
-                <text class="node-status" x="238" y="162">Foundation code; review screens planned</text>
-              </g>
-              <g>
-                <rect class="node-box node-soft" x="224" y="207" width="242" height="91" rx="6"/>
-                <text class="node-title" x="238" y="230">Backend API</text>
-                <text class="node-tech" x="238" y="249">Python · FastAPI</text>
-                <text x="238" y="269">Login, projects, uploads and requests</text>
-                <text class="node-status" x="238" y="287">Foundation code exists</text>
-              </g>
-              <g>
-                <rect class="node-box" x="12" y="218" width="175" height="117" rx="6"/>
-                <text class="node-title" x="25" y="241">Local file storage</text>
-                <text class="node-tech" x="25" y="260">data/ folder</text>
-                <text x="25" y="280">Original documents</text>
-                <text x="25" y="296">Generated slides / video</text>
-                <text x="25" y="312">Model weights and voices</text>
-                <text class="node-status" x="25" y="328">Storage configuration exists</text>
-              </g>
-              <g>
-                <rect class="node-box node-soft" x="224" y="340" width="242" height="96" rx="6"/>
-                <text class="node-title" x="238" y="363">Database and job queue</text>
-                <text class="node-tech" x="238" y="382">PostgreSQL + pgvector</text>
-                <text x="238" y="401">Projects, passages, search vectors,</text>
-                <text x="238" y="417">job status and graph checkpoints</text>
-                <text class="node-status" x="238" y="430">Database exists; checkpoints planned</text>
-              </g>
-              <g>
-                <rect class="node-box node-soft" x="224" y="478" width="242" height="95" rx="6"/>
-                <text class="node-title" x="238" y="501">Worker + agent workflow</text>
-                <text class="node-tech" x="238" y="520">Python · LangChain + LangGraph</text>
-                <text x="238" y="540">Route tools; save, pause and resume</text>
-                <text class="node-status" x="238" y="557">Ingestion wired; agent workflows planned</text>
-              </g>
-              <g>
-                <rect class="node-box" x="510" y="456" width="175" height="151" rx="6"/>
-                <text class="node-title" x="523" y="478">Pretrained Qwen</text>
-                <text class="node-tech" x="523" y="499">Ollama + Qwen2.5 7B</text>
-                <text x="523" y="516">Laptop development</text>
-                <text class="edge-label" x="523" y="535">OR</text>
-                <text class="node-tech" x="523" y="554">vLLM + Qwen3 32B</text>
-                <text x="523" y="571">School GPU target</text>
-                <text class="node-status" x="523" y="593">Candidates · tool use to be tested</text>
-              </g>
-              <g>
-                <rect class="node-box" x="224" y="624" width="242" height="81" rx="6"/>
-                <text class="node-title" x="238" y="648">Local speech service</text>
-                <text class="node-tech" x="238" y="667">Piper OR Kokoro</text>
-                <text x="238" y="684">Turns approved scripts into narration</text>
-                <text class="node-status" x="238" y="698">Service code; worker integration planned</text>
-              </g>
-            </svg>
-          </div>
-          <figcaption class="diagram-caption">The worker claims jobs; LangGraph checkpoints allow approval pauses and later resumption. All agent roles can share one pretrained Qwen server. Rendering and packaging use fixed code steps.</figcaption>
-        </figure>
-        <div class="diagram-notes">
-          <div><h3>LangChain · model and tools</h3><p>Wrap local Qwen and existing search/generation functions as tools. Test tool calling and structured output on the chosen model/server pair.</p></div>
-          <div><h3>LangGraph · workflow control</h3><p>Define routes, save state in PostgreSQL and pause for approval. Set call/time budgets; keep traces local and cloud tracing disabled.</p></div>
-        </div>
+      <div class="claim">
+        <p><strong>What changed in this revision.</strong> Evaluation has moved from a closing activity to the centre of the project, and now runs <em>before</em> the export work rather than after it. Video and LMS packaging are reduced to what a credible demonstration needs, because EY's existing prototype already covers that ground and rebuilding it would spend our remaining weeks on the one part that is not our contribution.</p>
       </div>
-      <footer><span>Proposed integration. Framework references: <a href="https://docs.langchain.com/oss/python/langchain/overview">LangChain</a> · <a href="https://docs.langchain.com/oss/python/langgraph/overview">LangGraph</a>.<br>Local Python libraries; target offline operation after dependencies and weights are prepared.</span><span class="page-number">03 / 04</span></footer>
-    </article>
 
-    <article class="page diagram-page" aria-labelledby="generation-title">
-      <div class="page-body">
-        <header>
-          <div class="eyebrow"><span>Document to course diagram</span><span>What happens inside the jobs</span></div>
-          <h1 class="second-title" id="generation-title">How documents become a course</h1>
-          <p class="intro">Qwen chooses whether to search again, revise a draft or request review based on evidence and critique. LangGraph limits those choices and preserves progress. Instructor approval is required before rendering and packaging. A–D match the team workstreams.</p>
-        </header>
-        <div class="diagram-legend" aria-label="Workflow legend">
-          <span><i class="legend-line" aria-hidden="true"></i>Source-processing code exists</span>
-          <span><i class="legend-line planned" aria-hidden="true"></i>Generation / export integration planned</span>
-        </div>
-        <p class="mobile-diagram-hint">Swipe the diagram sideways to follow every branch.</p>
-        <figure class="diagram-figure">
-          <div class="diagram-scroll" role="region" aria-label="Document to course workflow diagram" tabindex="0">
-            <svg class="architecture-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 751" role="img" aria-labelledby="workflow-svg-title workflow-svg-description">
-              <title id="workflow-svg-title">Source documents become reviewed course materials and an LMS package</title>
-              <desc id="workflow-svg-description">PDF, Word and PowerPoint sources are parsed by Docling, split into passages, embedded with BGE-M3 and stored in PostgreSQL with pgvector. Retrieval finds relevant evidence. A planned course-planning agent combines this evidence with the instructor brief and prompt templates, checks source coverage, retrieves gaps and revises the plan before instructor approval. A planned lesson-authoring agent produces slides, notes, tutorials, quizzes and scripts, validates structure and citations, uses critique to revise weak outputs and then requests instructor approval. python-pptx and LibreOffice create slides and slide images. Piper or Kokoro and FFmpeg create narrated captioned video from those images and scripts. HTML lessons and quizzes, slides and video are packaged as SCORM 1.2 for an existing LMS.</desc>
-              <defs>
-                <marker id="workflow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="arrow-fill" d="M 0 0 L 10 5 L 0 10 Z"/></marker>
-                <marker id="workflow-pending-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="arrow-fill pending" d="M 0 0 L 10 5 L 0 10 Z"/></marker>
-              </defs>
+      <section aria-labelledby="timeline-title">
+        <h2 id="timeline-title">Rough timeline and checkpoints</h2>
+        <table class="timeline" aria-labelledby="timeline-title">
+          <colgroup><col><col><col></colgroup>
+          <thead><tr><th>When in 2026</th><th>Focus and lead</th><th>Checkpoint</th></tr></thead>
+          <tbody>
+            <tr><th>Weeks 1–2<span class="dates">7–18 Sep</span></th><td>Set up the foundation<span class="owner">Everyone · D coordinates GPU</span></td><td><strong>Complete.</strong> Docker setup, local Qwen tool calling and structured output verified; context window and prompt-overflow handling fixed.</td></tr>
+            <tr><th>Weeks 2–4<span class="dates">14 Sep–2 Oct</span></th><td>Make sources searchable<span class="owner">A</span></td><td>Read PDF, Word and slides; preserve references; check retrieval against 30 manually labelled questions. Protect citations against re-upload.</td></tr>
+            <tr><th>Weeks 4–6<span class="dates">28 Sep–16 Oct</span></th><td>Planning agent and the first gate<span class="owner">B · C supports</span></td><td>Draft objectives and syllabus with LangGraph; <strong>build the gate mechanism itself</strong> — pass, revise, escalate — with saved state and approval pause/resume.</td></tr>
+            <tr class="highlight"><th>Weeks 6–9<span class="dates">12 Oct–6 Nov</span></th><td>Lesson agent and the full three-check gate<span class="owner">C · A/B support</span></td><td>Generate materials; run grounding, coherence and pedagogy checks on each; cap retries; preserve citations; show failures and reasons in the editor. <strong>Demo 6 Nov.</strong></td></tr>
+            <tr class="highlight"><th>Weeks 9–12<span class="dates">2–27 Nov</span></th><td>Prove the gates are real<span class="owner">D · everyone evaluates</span></td><td>Instructor agreement study on a blind sample; ablation across single-pass, fixed-revision and gated runs with model and sources held fixed.</td></tr>
+            <tr><th>Weeks 12–14<span class="dates">16 Nov–11 Dec</span></th><td>Export, reduced scope<span class="owner">C + D</span></td><td>Editable slides and an HTML/SCORM 1.2 package that imports into two players. Narrated video only if the schedule allows.</td></tr>
+            <tr><th>Weeks 14–15<span class="dates">30 Nov–18 Dec</span></th><td>Test and hand over<span class="owner">Everyone</span></td><td>Sample course, offline deployment test, evaluation report, documentation and final demonstration.</td></tr>
+          </tbody>
+        </table>
+      </section>
 
-              <path class="connector" d="M 348 45 V 69" marker-end="url(#workflow-arrow)"/>
-              <path class="connector" d="M 611 163 V 183 H 348 V 205" marker-end="url(#workflow-arrow)"/>
-              <path class="connector pending" d="M 348 267 V 298" marker-start="url(#workflow-pending-arrow)" marker-end="url(#workflow-pending-arrow)"/>
-              <text class="edge-label" x="358" y="285">Query ↔ evidence</text>
-              <path class="connector pending" d="M 171 337 H 192" marker-end="url(#workflow-pending-arrow)"/>
-              <path class="connector pending" d="M 528 337 H 506" marker-end="url(#workflow-pending-arrow)"/>
-              <path class="connector pending" d="M 348 381 V 415" marker-end="url(#workflow-pending-arrow)"/>
-              <text class="edge-label" x="358" y="402">Approved lesson structure</text>
-              <path class="connector pending" d="M 609 375 V 460 H 506" marker-end="url(#workflow-pending-arrow)"/>
-              <text class="edge-label" x="619" y="410">Generation</text>
-              <text class="edge-label" x="619" y="426">and review</text>
-              <path class="connector pending" d="M 192 236 H 181 V 459 H 192" marker-start="url(#workflow-pending-arrow)" marker-end="url(#workflow-pending-arrow)"/>
-              <text class="edge-label" x="17" y="423">Agent searches again</text>
-              <text class="edge-label" x="17" y="440">if evidence is missing</text>
-              <path class="connector pending" d="M 348 520 V 539 H 111 V 563" marker-end="url(#workflow-pending-arrow)"/>
-              <path class="connector pending" d="M 348 539 V 563" marker-end="url(#workflow-pending-arrow)"/>
-              <path class="connector pending" d="M 348 539 H 587 V 563" marker-end="url(#workflow-pending-arrow)"/>
-              <path class="connector pending" d="M 220 607 H 240" marker-end="url(#workflow-pending-arrow)"/>
-              <path class="connector pending" d="M 111 653 V 675 H 348 V 696" marker-end="url(#workflow-pending-arrow)"/>
-              <path class="connector pending" d="M 348 653 V 696" marker-end="url(#workflow-pending-arrow)"/>
-              <path class="connector pending" d="M 587 653 V 675 H 348"/>
-
-              <g>
-                <rect class="node-box" x="224" y="4" width="248" height="41" rx="6"/>
-                <text class="node-title" x="348" y="22" text-anchor="middle">Source documents</text>
-                <text x="348" y="38" text-anchor="middle">PDF · Word · PowerPoint</text>
-              </g>
-              <g>
-                <rect class="node-box node-soft" x="8" y="69" width="684" height="94" rx="6"/>
-                <text class="node-title" x="23" y="91">A · Document processing</text>
-                <text class="node-status" x="677" y="91" text-anchor="end">Code exists</text>
-                <text class="node-tech" x="24" y="117">Docling + readers</text>
-                <text x="24" y="137">Extract text / tables</text>
-                <text class="node-tech" x="195" y="117">Chunker</text>
-                <text x="195" y="137">Split; keep references</text>
-                <text class="node-tech" x="374" y="117">BGE-M3</text>
-                <text x="374" y="137">Create meaning vectors</text>
-                <text class="node-tech" x="553" y="117">pgvector + Postgres</text>
-                <text x="553" y="137">Store and index</text>
-                <path class="connector" d="M 166 120 H 184" marker-end="url(#workflow-arrow)"/>
-                <path class="connector" d="M 345 120 H 363" marker-end="url(#workflow-arrow)"/>
-                <path class="connector" d="M 524 120 H 542" marker-end="url(#workflow-arrow)"/>
-                <text class="node-status" x="374" y="154">via sentence-transformers</text>
-              </g>
-              <g>
-                <rect class="node-box node-soft" x="192" y="205" width="314" height="62" rx="6"/>
-                <text class="node-title" x="207" y="227">Source retrieval</text>
-                <text x="207" y="245">BGE-M3 + pgvector find relevant passages</text>
-                <text class="node-status" x="207" y="260">Code exists · source text stays linked to its origin</text>
-              </g>
-              <g>
-                <rect class="node-box node-review" x="8" y="299" width="163" height="76" rx="6"/>
-                <text class="node-title" x="21" y="321">Instructor brief</text>
-                <text x="21" y="342">Audience and duration</text>
-                <text x="21" y="359">Learning goals</text>
-              </g>
-              <g>
-                <rect class="node-box node-planned" x="192" y="298" width="314" height="83" rx="6"/>
-                <text class="node-title" x="207" y="315">B · Course-planning agent</text>
-                <text x="207" y="331">Draft objectives, syllabus and lesson structure</text>
-                <text class="node-tech" x="207" y="347">Check coverage → search gaps or revise</text>
-                <line class="approval-rule" x1="207" y1="355" x2="491" y2="355"/>
-                <text class="node-tech" x="207" y="368">Instructor reviews and approves the plan</text>
-              </g>
-              <g>
-                <rect class="node-box" x="528" y="299" width="164" height="76" rx="6"/>
-                <text class="node-title" x="541" y="321">Prompt templates</text>
-                <text x="541" y="341">Versioned instructions</text>
-                <text class="node-status" x="541" y="361">Template / version code exists</text>
-              </g>
-              <g>
-                <rect class="node-box node-planned" x="192" y="415" width="314" height="105" rx="6"/>
-                <text class="node-title" x="207" y="437">C · Lesson-authoring agent</text>
-                <text x="207" y="456">Slides, notes, tutorials, quizzes and scripts</text>
-                <text x="207" y="473">Critique → search again or revise (up to 2)</text>
-                <text class="node-status pending" x="207" y="488">Quiz / critique helpers exist; integration planned</text>
-                <line class="approval-rule" x1="207" y1="496" x2="491" y2="496"/>
-                <text class="node-tech" x="207" y="511">Instructor edits and approves materials</text>
-              </g>
-              <g>
-                <rect class="node-box node-planned" x="8" y="563" width="212" height="90" rx="6"/>
-                <text class="node-title" x="21" y="585">Slide rendering</text>
-                <text class="node-tech" x="21" y="605">python-pptx → LibreOffice</text>
-                <text x="21" y="624">Editable PPTX + slide images</text>
-                <text class="node-status pending" x="21" y="642">Images also feed the video step →</text>
-              </g>
-              <g>
-                <rect class="node-box node-planned" x="240" y="563" width="216" height="90" rx="6"/>
-                <text class="node-title" x="253" y="585">D · Narration and video</text>
-                <text class="node-tech" x="253" y="605">Piper / Kokoro → FFmpeg</text>
-                <text x="253" y="624">Slides + audio + captions → MP4</text>
-                <text class="node-status pending" x="253" y="642">Speech code; video integration planned</text>
-              </g>
-              <g>
-                <rect class="node-box node-planned" x="476" y="563" width="216" height="90" rx="6"/>
-                <text class="node-title" x="489" y="585">Lesson export</text>
-                <text class="node-tech" x="489" y="605">HTML lessons and quizzes</text>
-                <text x="489" y="624">Browser-based course content</text>
-                <text class="node-status pending" x="489" y="642">Planned</text>
-              </g>
-              <g>
-                <rect class="node-box node-planned" x="160" y="696" width="377" height="50" rx="6"/>
-                <text class="node-title" x="348" y="717" text-anchor="middle">SCORM 1.2 packager → existing LMS</text>
-                <text x="348" y="736" text-anchor="middle">Bundle approved lessons, slides and video into a course ZIP</text>
-              </g>
-            </svg>
+      <section aria-labelledby="team-title">
+        <h2 id="team-title">Proposed delegation across four students</h2>
+        <p class="small team-intro">A–D are workstream labels; student names are to be assigned. Each owner builds the relevant backend and interface, with peer review.</p>
+        <div class="team">
+          <div class="person">
+            <h3><span class="letter" aria-hidden="true">A</span>Documents and grounding</h3>
+            <p>Own parsing, search tools and citation integrity. Own the <strong>deterministic grounding check</strong> — verbatim span validation and stable references that survive re-upload.</p>
           </div>
-          <figcaption class="diagram-caption">Both agents run in LangGraph using LangChain tools. Code validates structure and citations; critique assesses source support and teaching quality. Unresolved gaps go to the instructor when budgets are reached.</figcaption>
-        </figure>
-        <div class="diagram-notes">
-          <div><h3>Example · missing source support</h3><p>A quiz answer lacks evidence. The agent searches the uploaded sources, repairs the question or flags it for review. Missing policy details must be flagged.</p></div>
-          <div><h3>How we demonstrate value</h3><p>Compare fixed and agentic workflows on the same pretrained model. Measure quality and reviewer effort alongside extra calls and time; gains must be tested.</p></div>
+          <div class="person">
+            <h3><span class="letter" aria-hidden="true">B</span>Workflow, gates and approval</h3>
+            <p>Own the LangGraph workflow, the planning agent, and the <strong>gate mechanism</strong>: routing on pass / revise / escalate, retry budgets, saved state and approval pause and resume.</p>
+          </div>
+          <div class="person">
+            <h3><span class="letter" aria-hidden="true">C</span>Lesson agent and evaluators</h3>
+            <p>Own lesson generation, the <strong>three evaluators</strong> and bounded revision, the instructor editing surface that shows why something failed, and reduced-scope export.</p>
+          </div>
+          <div class="person">
+            <h3><span class="letter" aria-hidden="true">D</span>Runtime and evidence</h3>
+            <p>Own pretrained Qwen serving and measurement, the <strong>agreement study and the ablation</strong>, offline operation, and the evaluation report. Coordinate GPU use.</p>
+          </div>
+        </div>
+        <p class="small muted team-note">Shared routine: integrate and demo every Friday. Everyone contributes tests, documentation and quality reviews; agree interfaces early so the four parts connect.</p>
+      </section>
+
+      <section class="delivery" aria-label="Final deliverables and success measures">
+        <div>
+          <h2>What we will hand over</h2>
+          <ul class="small">
+            <li>A local prototype with an evaluation gate on every generated step, and a sample course produced through it.</li>
+            <li>The evaluation record for that course: every pass, revision and escalation with its reason and supporting evidence.</li>
+            <li>A report comparing single-pass, fixed-revision and gated agentic workflows, plus the instructor agreement results.</li>
+            <li>Code, tests, API and deployment guides, final presentation and demonstration.</li>
+          </ul>
+        </div>
+        <div>
+          <h2>How we will judge success</h2>
+          <ul class="small">
+            <li><strong>Grounding rate</strong> — share of generated claims with a verifiable verbatim source span, measured in code.</li>
+            <li><strong>Agreement</strong> — how closely agent scores track an instructor's on a blind sample.</li>
+            <li><strong>Reviewer effort</strong> — edits required per approved artefact, against the ungated baseline.</li>
+            <li><strong>Cost</strong> — model calls, wall-clock time and memory per course, on both CPU and GPU profiles.</li>
+          </ul>
+        </div>
+      </section>
+
+      <p class="small muted scope-note">Scope: pretrained models; no training or fine-tuning deliverable. Avatars, extra languages and SCORM 2004 remain optional. A negative result — gates that do not improve outcomes — is a reportable finding, not a project failure.</p>
+    </div>
+    <footer>
+      <span>Adapted from the <a href="ROADMAP.md">roadmap</a>, <a href="ARCHITECTURE.md">architecture</a> and team workstreams. Indicative timeline based on a 7 Sep start. Hardware access and named owners remain to be confirmed.</span>
+      <span class="page-number">02 / 04</span>
+    </footer>
+  </article>
+
+  <!-- ============================ PAGE 3 ============================ -->
+  <article class="page diagram-page" aria-labelledby="services-title">
+    <div class="page-body">
+      <div class="eyebrow"><span>Technology stack diagram</span><span>The services and their connections</span></div>
+
+      <h1 id="services-title" class="second-title">How the system fits together</h1>
+      <p class="intro">LangChain connects pretrained Qwen to tools; LangGraph manages the agent workflow inside the Python worker. The evaluation layer sits between generation and storage — nothing reaches an instructor without passing through it. PostgreSQL stores jobs, workflow checkpoints and evaluation records. Models, tools and logs stay local.</p>
+
+      <div class="diagram-legend" aria-label="Diagram legend">
+        <span><span class="legend-line"></span>Foundation connection</span>
+        <span><span class="legend-line planned"></span>Planned integration</span>
+        <span><span class="legend-swatch"></span>Our contribution</span>
+        <span class="muted">Code exists ≠ full deployment verified</span>
+      </div>
+      <p class="mobile-diagram-hint">Swipe the diagram sideways to read all components.</p>
+
+      <figure class="diagram-figure">
+        <div class="diagram-scroll" role="region" aria-label="System architecture diagram" tabindex="0">
+          <svg class="architecture-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 672" role="img" aria-labelledby="system-svg-title system-svg-description">
+            <title id="system-svg-title">Local LMS service architecture</title>
+            <desc id="system-svg-description">An instructor uses a Next.js web interface, which sends requests to FastAPI and receives results and progress. FastAPI stores records and queued jobs in PostgreSQL with pgvector, alongside evaluation records, and uploads in local file storage. A Python worker claims jobs and runs bounded agents that retrieve evidence and generate drafts. Every draft passes through an evaluation layer that scores grounding, coherence and pedagogy and returns pass, revise or escalate before anything is stored or shown to an instructor. The worker calls Ollama with Qwen2.5 7B or vLLM with Qwen3 32B for generation and scoring, and Piper or Kokoro for narration. Docker Compose manages the local services.</desc>
+
+            <defs>
+              <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" class="arrow-fill"/>
+              </marker>
+              <marker id="arrowhead-gate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="#8a4f1d"/>
+              </marker>
+            </defs>
+
+            <!-- instructor -->
+            <rect class="node-box node-review" x="229" y="8" width="242" height="44" rx="6"/>
+            <text class="node-title" x="350" y="28" text-anchor="middle">Instructor / administrator</text>
+            <text class="node-status" x="350" y="43" text-anchor="middle">Uses a browser</text>
+
+            <!-- local services boundary -->
+            <rect class="boundary" x="8" y="76" width="684" height="580" rx="10"/>
+            <text class="node-tech" x="20" y="94">LOCAL SERVICES</text>
+            <text class="node-status" x="20" y="108">Docker Compose starts and connects them</text>
+
+            <!-- web -->
+            <rect class="node-box node-soft" x="229" y="120" width="242" height="70" rx="6"/>
+            <text class="node-title" x="243" y="141">Web interface</text>
+            <text class="node-tech" x="243" y="158">Next.js · React · TypeScript</text>
+            <text class="node-status pending" x="243" y="176">Uploads work; review screens planned</text>
+
+            <!-- api -->
+            <rect class="node-box node-soft" x="229" y="218" width="242" height="70" rx="6"/>
+            <text class="node-title" x="243" y="239">Backend API</text>
+            <text class="node-tech" x="243" y="256">Python · FastAPI</text>
+            <text class="node-status" x="243" y="274">Login, projects, uploads, jobs — working</text>
+
+            <!-- database -->
+            <rect class="node-box node-soft" x="229" y="316" width="242" height="78" rx="6"/>
+            <text class="node-title" x="243" y="337">Database and job queue</text>
+            <text class="node-tech" x="243" y="354">PostgreSQL + pgvector</text>
+            <text class="node-status pending" x="243" y="372">Passages and jobs work; checkpoints and</text>
+            <text class="node-status pending" x="243" y="386">evaluation records planned</text>
+
+            <!-- file storage (left of db) -->
+            <rect class="node-box" x="20" y="316" width="186" height="78" rx="6"/>
+            <text class="node-title" x="34" y="337">Local file storage</text>
+            <text class="node-tech" x="34" y="354">data/ folder</text>
+            <text class="node-status" x="34" y="372">Documents, generated files,</text>
+            <text class="node-status" x="34" y="386">model weights and voices</text>
+
+            <!-- worker -->
+            <rect class="node-box node-planned" x="229" y="422" width="242" height="70" rx="6"/>
+            <text class="node-title" x="243" y="443">Worker + agent workflow</text>
+            <text class="node-tech" x="243" y="460">Python · LangChain + LangGraph</text>
+            <text class="node-status pending" x="243" y="478">Ingestion wired; agents planned</text>
+
+            <!-- speech (right of worker) -->
+            <rect class="node-box node-planned" x="494" y="422" width="186" height="70" rx="6"/>
+            <text class="node-title" x="508" y="443">Local speech</text>
+            <text class="node-tech" x="508" y="460">Piper OR Kokoro</text>
+            <text class="node-status pending" x="508" y="478">Service exists; not wired</text>
+
+            <!-- evaluation layer: the contribution -->
+            <rect class="node-gate" x="229" y="520" width="242" height="82" rx="6"/>
+            <text class="gate-title" x="243" y="542">Evaluation layer</text>
+            <text class="gate-tech" x="243" y="559">Code checks + critique prompts</text>
+            <text class="node-status pending" x="243" y="577">Grounding · coherence · pedagogy</text>
+            <text class="node-status pending" x="243" y="591">Returns pass / revise / escalate</text>
+
+            <!-- model server (left of evaluation) -->
+            <rect class="node-box node-planned" x="20" y="520" width="186" height="82" rx="6"/>
+            <text class="node-title" x="34" y="542">Pretrained Qwen</text>
+            <text class="node-tech" x="34" y="559">Ollama 7B · or vLLM 32B</text>
+            <text class="node-status" x="34" y="577">Serving and tool calls</text>
+            <text class="node-status" x="34" y="591">verified 20 Sep</text>
+
+            <!-- connectors: vertical spine -->
+            <path class="connector" d="M350 52 L350 120" marker-end="url(#arrowhead)" marker-start="url(#arrowhead)"/>
+            <text class="edge-label" x="358" y="92">Requests ↔ results</text>
+
+            <path class="connector" d="M350 190 L350 218" marker-end="url(#arrowhead)" marker-start="url(#arrowhead)"/>
+
+            <path class="connector" d="M350 288 L350 316" marker-end="url(#arrowhead)" marker-start="url(#arrowhead)"/>
+            <text class="edge-label" x="358" y="306">Read / save + queue jobs</text>
+
+            <path class="connector pending" d="M350 394 L350 422" marker-end="url(#arrowhead)" marker-start="url(#arrowhead)"/>
+            <text class="edge-label" x="358" y="412">Claim jobs ↔ save state</text>
+
+            <path class="connector gate" d="M350 492 L350 520" marker-end="url(#arrowhead-gate)" marker-start="url(#arrowhead-gate)"/>
+            <text class="edge-label gate" x="358" y="512">Draft ↔ verdict</text>
+
+            <!-- side connectors -->
+            <path class="connector" d="M229 355 L206 355" marker-end="url(#arrowhead)" marker-start="url(#arrowhead)"/>
+            <path class="connector pending" d="M471 457 L494 457" marker-end="url(#arrowhead)" marker-start="url(#arrowhead)"/>
+            <text class="edge-label" x="482" y="446" text-anchor="middle">Script ↔ audio</text>
+            <path class="connector pending" d="M229 561 L206 561" marker-end="url(#arrowhead)" marker-start="url(#arrowhead)"/>
+
+            <!-- evaluation records back to the database -->
+            <path class="connector gate" d="M471 561 L620 561 L620 355 L471 355" marker-end="url(#arrowhead-gate)"/>
+            <text class="edge-label gate" x="628" y="460">Evaluation</text>
+            <text class="edge-label gate" x="628" y="474">records</text>
+          </svg>
+        </div>
+        <figcaption class="diagram-caption">The worker claims jobs; LangGraph checkpoints allow approval pauses and later resumption. Drafting and scoring share one pretrained Qwen server. Rendering and packaging use fixed code steps, not model decisions.</figcaption>
+      </figure>
+
+      <div class="diagram-notes">
+        <div>
+          <h3>LangChain · model and tools</h3>
+          <p>Wrap local Qwen and the existing search and generation functions as tools. Tool calling and structured output were verified on the chosen model and server pair on 20 September 2026.</p>
+        </div>
+        <div>
+          <h3>LangGraph · workflow control</h3>
+          <p>Define routes, save state in PostgreSQL and pause for approval. The gate's three outcomes are the routing decision. Set call and time budgets; keep traces local and cloud tracing disabled.</p>
         </div>
       </div>
-      <footer><span>Proposed agentic workflow · model weights stay unchanged. Source checks and AI critique support instructor review; they do not prove accuracy.</span><span class="page-number">04 / 04</span></footer>
-    </article>
-  </main>
+    </div>
+    <footer><span>Proposed integration. Framework references: <a href="https://python.langchain.com/">LangChain</a> · <a href="https://langchain-ai.github.io/langgraph/">LangGraph</a>. Local Python libraries; target offline operation after dependencies and weights are prepared.</span><span class="page-number">03 / 04</span></footer>
+  </article>
+
+  <!-- ============================ PAGE 4 ============================ -->
+  <article class="page diagram-page" aria-labelledby="workflow-title-4">
+    <div class="page-body">
+      <div class="eyebrow"><span>Document to course diagram</span><span>What happens inside the jobs</span></div>
+
+      <h1 id="workflow-title-4" class="second-title">How documents become a reviewed course</h1>
+      <p class="intro">Each generated step is scored against the evidence that produced it before the workflow advances. Weak output is revised within a fixed budget; what cannot be repaired stops and goes to the instructor with the failing check named. A–D match the team workstreams.</p>
+
+      <div class="diagram-legend" aria-label="Diagram legend">
+        <span><span class="legend-line"></span>Source-processing code exists</span>
+        <span><span class="legend-line planned"></span>Generation and export planned</span>
+        <span><span class="legend-swatch"></span>Evaluation gate — our contribution</span>
+      </div>
+      <p class="mobile-diagram-hint">Swipe the diagram sideways to follow every branch.</p>
+
+      <figure class="diagram-figure">
+        <div class="diagram-scroll" role="region" aria-label="Document to course workflow diagram" tabindex="0">
+          <svg class="architecture-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 700" role="img" aria-labelledby="flow-svg-title flow-svg-description">
+            <title id="flow-svg-title">Source documents become reviewed course materials and an LMS package</title>
+            <desc id="flow-svg-description">PDF, Word and PowerPoint sources are parsed by Docling, split into passages and embedded with BGE-M3 into PostgreSQL with pgvector. Retrieval supplies evidence for the current step. In step one, a planning agent drafts objectives and a syllabus; an evaluation gate scores grounding and source coverage and returns pass, revise or escalate. Revision is bounded and returns to the drafting step; escalation goes to the instructor with the failing check named. The instructor approves the plan. In step two, a lesson agent drafts slides, notes, quizzes and scripts; a second gate scores grounding, coherence and pedagogy with the same three outcomes. The instructor approves each asset. Approved material is rendered and packaged by deterministic code into slides, HTML, video and a SCORM 1.2 package. Every gate decision, its reason and its supporting evidence are written to an evaluation record.</desc>
+
+            <defs>
+              <marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" class="arrow-fill"/>
+              </marker>
+              <marker id="fa-gate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0 0 L10 5 L0 10 z" fill="#8a4f1d"/>
+              </marker>
+            </defs>
+
+            <!-- Row 1: ingestion -->
+            <rect class="node-box node-soft" x="14" y="26" width="206" height="54" rx="6"/>
+            <text class="node-title" x="27" y="47">Source documents</text>
+            <text class="node-status" x="27" y="66">PDF · Word · PowerPoint</text>
+
+            <rect class="node-box node-soft" x="247" y="26" width="206" height="54" rx="6"/>
+            <text class="node-title" x="260" y="47">Parse and chunk</text>
+            <text class="node-status" x="260" y="66">Docling · headings · pages</text>
+
+            <rect class="node-box node-soft" x="480" y="26" width="206" height="54" rx="6"/>
+            <text class="node-title" x="493" y="47">Embed and index</text>
+            <text class="node-status" x="493" y="66">BGE-M3 · pgvector</text>
+
+            <path class="connector" d="M220 53 L247 53" marker-end="url(#fa)"/>
+            <path class="connector" d="M453 53 L480 53" marker-end="url(#fa)"/>
+
+            <!-- Row 2: retrieval -->
+            <rect class="node-box node-soft" x="14" y="106" width="672" height="44" rx="6"/>
+            <text class="node-title" x="27" y="134">Retrieve evidence for the current step</text>
+            <text class="node-status" x="420" y="134">Passages with stable references · workstream A</text>
+
+            <path class="connector" d="M583 80 L583 94 L117 94 L117 106" marker-end="url(#fa)"/>
+
+            <!-- STEP 1 band -->
+            <text class="band-label" x="14" y="180">STEP 1 · COURSE PLAN · WORKSTREAM B</text>
+            <line class="approval-rule" x1="14" y1="188" x2="686" y2="188"/>
+
+            <rect class="node-box node-planned" x="14" y="200" width="206" height="58" rx="6"/>
+            <text class="node-title" x="27" y="222">Draft the plan</text>
+            <text class="node-status pending" x="27" y="240">Objectives and syllabus</text>
+
+            <rect class="node-gate" x="247" y="200" width="206" height="58" rx="6"/>
+            <text class="gate-title" x="260" y="221">Evaluation gate</text>
+            <text class="gate-tech" x="260" y="238">Grounding · coverage</text>
+            <text class="node-status pending" x="260" y="252">pass / revise / escalate</text>
+
+            <rect class="node-box node-planned" x="480" y="200" width="206" height="58" rx="6"/>
+            <text class="node-title" x="493" y="222">Revise or escalate</text>
+            <text class="node-status pending" x="493" y="240">Retry budget enforced</text>
+
+            <path class="connector" d="M117 150 L117 200" marker-end="url(#fa)"/>
+            <path class="connector gate" d="M220 229 L247 229" marker-end="url(#fa-gate)"/>
+            <path class="connector gate" d="M453 229 L480 229" marker-end="url(#fa-gate)"/>
+            <text class="edge-label gate" x="466" y="221" text-anchor="middle">fail</text>
+
+            <!-- revise loop back -->
+            <path class="connector gate" d="M583 258 L583 274 L117 274 L117 258" marker-end="url(#fa-gate)"/>
+            <text class="edge-label gate" x="350" y="270" text-anchor="middle">revise, within the retry budget</text>
+
+            <!-- pass down to approval -->
+            <path class="connector gate" d="M350 258 L350 296" marker-end="url(#fa-gate)"/>
+            <text class="edge-label gate" x="358" y="290">pass</text>
+
+            <!-- Row: plan approval -->
+            <rect class="node-box node-review" x="14" y="296" width="672" height="44" rx="6"/>
+            <text class="node-title" x="27" y="324">Instructor approves the plan</text>
+            <text class="node-status" x="420" y="324">Workflow pauses here and resumes from a saved checkpoint</text>
+
+            <!-- escalate arrow into approval -->
+            <path class="connector gate" d="M640 258 L640 280 L660 280 L660 296" marker-end="url(#fa-gate)"/>
+            <text class="edge-label gate" x="664" y="276">escalate</text>
+
+            <!-- STEP 2 band -->
+            <text class="band-label" x="14" y="370">STEP 2 · LESSON ASSETS · WORKSTREAM C</text>
+            <line class="approval-rule" x1="14" y1="378" x2="686" y2="378"/>
+
+            <rect class="node-box node-planned" x="14" y="390" width="206" height="58" rx="6"/>
+            <text class="node-title" x="27" y="412">Draft the assets</text>
+            <text class="node-status pending" x="27" y="430">Slides · notes · quiz · script</text>
+
+            <rect class="node-gate" x="247" y="390" width="206" height="58" rx="6"/>
+            <text class="gate-title" x="260" y="411">Evaluation gate</text>
+            <text class="gate-tech" x="260" y="428">Grounding · coherence · pedagogy</text>
+            <text class="node-status pending" x="260" y="442">pass / revise / escalate</text>
+
+            <rect class="node-box node-planned" x="480" y="390" width="206" height="58" rx="6"/>
+            <text class="node-title" x="493" y="412">Revise or escalate</text>
+            <text class="node-status pending" x="493" y="430">Retry budget enforced</text>
+
+            <path class="connector" d="M117 340 L117 390" marker-end="url(#fa)"/>
+            <path class="connector gate" d="M220 419 L247 419" marker-end="url(#fa-gate)"/>
+            <path class="connector gate" d="M453 419 L480 419" marker-end="url(#fa-gate)"/>
+            <text class="edge-label gate" x="466" y="411" text-anchor="middle">fail</text>
+
+            <path class="connector gate" d="M583 448 L583 464 L117 464 L117 448" marker-end="url(#fa-gate)"/>
+            <text class="edge-label gate" x="350" y="460" text-anchor="middle">revise, within the retry budget</text>
+
+            <path class="connector gate" d="M350 448 L350 486" marker-end="url(#fa-gate)"/>
+            <text class="edge-label gate" x="358" y="480">pass</text>
+
+            <!-- Row: asset approval -->
+            <rect class="node-box node-review" x="14" y="486" width="672" height="44" rx="6"/>
+            <text class="node-title" x="27" y="514">Instructor approves each asset</text>
+            <text class="node-status" x="420" y="514">Failing checks are shown with the evidence behind them</text>
+
+            <path class="connector gate" d="M640 448 L640 470 L660 470 L660 486" marker-end="url(#fa-gate)"/>
+            <text class="edge-label gate" x="664" y="466">escalate</text>
+
+            <!-- Row: render -->
+            <rect class="node-box node-planned" x="14" y="570" width="672" height="52" rx="6"/>
+            <text class="node-title" x="27" y="592">Render and package — deterministic code, no model decisions</text>
+            <text class="node-status pending" x="27" y="611">python-pptx and LibreOffice · Piper or Kokoro and FFmpeg · HTML and SCORM 1.2</text>
+
+            <path class="connector" d="M350 530 L350 570" marker-end="url(#fa)"/>
+
+            <!-- Evaluation record rail -->
+            <rect class="node-gate" x="14" y="640" width="672" height="46" rx="6"/>
+            <text class="gate-title" x="27" y="662">Evaluation record</text>
+            <text class="node-status pending" x="27" y="679">Every gate decision, its reason, its scores and the evidence behind it — the basis of the final report</text>
+          </svg>
+        </div>
+        <figcaption class="diagram-caption">Qwen drafts and scores; the gate decides. LangGraph limits how many times a draft may be revised and preserves progress across the approval pauses. Instructor approval is required before rendering and packaging.</figcaption>
+      </figure>
+    </div>
+    <footer><span>Revised 21 September 2026. Source processing is implemented and verified; the evaluation gates, agents and export remain to be built. Retry budgets and score thresholds will be set from the first measured baseline, not assumed.</span><span class="page-number">04 / 04</span></footer>
+  </article>
+
 </body>
 </html>

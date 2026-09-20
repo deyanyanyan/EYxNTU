@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from functools import lru_cache
 
 from openai import AsyncOpenAI, OpenAI
@@ -15,6 +16,70 @@ from pydantic import BaseModel, ValidationError
 from app.config import settings
 
 log = logging.getLogger(__name__)
+
+# Rough characters-per-token for the mixed English/technical prose we send.
+# Deliberately below the ~4.0 real-world ratio so the estimate errs high and the
+# guard trips before the server does.
+_CHARS_PER_TOKEN = 3.5
+# Per-message chat-template overhead (role markers, separators).
+_MESSAGE_OVERHEAD_TOKENS = 4
+
+
+class ContextOverflowError(RuntimeError):
+    """Prompt + reserved output would not fit the server's context window.
+
+    Raised instead of letting the call through: Ollama and vLLM both drop the
+    oldest tokens silently, which deletes retrieved evidence from the prompt and
+    produces a confident, ungrounded answer that nothing downstream can detect.
+    """
+
+
+def estimate_tokens(text: str) -> int:
+    return math.ceil(len(text) / _CHARS_PER_TOKEN)
+
+
+def prompt_token_budget(max_tokens: int | None = None) -> int:
+    """Tokens available for the prompt once space for the reply is reserved.
+
+    Use this to decide how many retrieved chunks fit before building a prompt,
+    rather than building one and catching ContextOverflowError.
+    """
+    return settings.llm_context_tokens - (max_tokens or settings.llm_max_tokens)
+
+
+def _guard_context(messages: list[dict], max_tokens: int) -> int:
+    """Refuse a prompt the server would silently truncate. Returns the estimate."""
+    estimate = sum(estimate_tokens(str(m.get("content") or "")) + _MESSAGE_OVERHEAD_TOKENS for m in messages)
+    budget = prompt_token_budget(max_tokens)
+    if estimate > budget:
+        raise ContextOverflowError(
+            f"Prompt is ~{estimate} tokens but only {budget} fit "
+            f"(LLM_CONTEXT_TOKENS={settings.llm_context_tokens} minus {max_tokens} reserved for the reply). "
+            "Retrieve fewer chunks, lower LLM_MAX_TOKENS, or raise the server's window "
+            "(OLLAMA_CONTEXT_LENGTH / vLLM --max-model-len) and LLM_CONTEXT_TOKENS together."
+        )
+    return estimate
+
+
+def _warn_if_truncated(resp, estimate: int) -> None:
+    """Second line of defence: the server reported far fewer prompt tokens than we sent."""
+    usage = getattr(resp, "usage", None)
+    reported = getattr(usage, "prompt_tokens", None) if usage else None
+    if not reported:
+        return
+    if reported >= settings.llm_context_tokens:
+        log.error(
+            "server reports prompt_tokens=%s at or above the configured window (%s); "
+            "evidence was almost certainly dropped. Check that the server's context length "
+            "matches LLM_CONTEXT_TOKENS.",
+            reported, settings.llm_context_tokens,
+        )
+    elif reported < estimate * 0.65:
+        log.warning(
+            "server reports prompt_tokens=%s but ~%s were sent; the server's context window "
+            "is probably smaller than LLM_CONTEXT_TOKENS=%s and truncated the prompt.",
+            reported, estimate, settings.llm_context_tokens,
+        )
 
 
 @lru_cache
@@ -37,12 +102,16 @@ def get_pydantic_ai_model():
 
 async def chat_text(system: str, user: str, *, temperature: float | None = None, max_tokens: int | None = None) -> str:
     client = get_async_client()
+    reply_tokens = max_tokens or settings.llm_max_tokens
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+    estimate = _guard_context(messages, reply_tokens)
     resp = await client.chat.completions.create(
         model=settings.llm_model,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        messages=messages,
         temperature=settings.llm_temperature if temperature is None else temperature,
-        max_tokens=max_tokens or settings.llm_max_tokens,
+        max_tokens=reply_tokens,
     )
+    _warn_if_truncated(resp, estimate)
     return resp.choices[0].message.content or ""
 
 
@@ -58,6 +127,10 @@ async def chat_structured[T: BaseModel](system: str, user: str, schema: type[T],
     messages = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": user}]
     last_err: Exception | None = None
     for attempt in range(retries + 1):
+        # Re-checked every attempt: each repair round appends the bad output and
+        # the validation error, so a prompt that fitted initially can outgrow the
+        # window partway through the loop.
+        estimate = _guard_context(messages, settings.llm_max_tokens)
         resp = await client.chat.completions.create(
             model=settings.llm_model,
             messages=messages,
@@ -65,6 +138,7 @@ async def chat_structured[T: BaseModel](system: str, user: str, schema: type[T],
             max_tokens=settings.llm_max_tokens,
             response_format={"type": "json_object"},
         )
+        _warn_if_truncated(resp, estimate)
         raw = resp.choices[0].message.content or ""
         try:
             return schema.model_validate_json(_strip_fences(raw))

@@ -12,7 +12,15 @@ sh scripts/compose.sh exec -T api python /srv/scripts/smoke.py --llm
 
 On Windows replace `sh scripts/compose.sh` with `powershell -ExecutionPolicy Bypass -File scripts/compose.ps1`.
 
-Set `LLM_MODEL` to the exact model you pulled. Weights persist in `data/models/ollama`. The model smoke check validates structured JSON; tool calling, latency and agent behavior must be benchmarked separately.
+Set `LLM_MODEL` to the exact model you pulled. Weights persist in `data/models/ollama`. The model smoke check validates structured JSON.
+
+## Context window
+
+Ollama serves a 4096-token window unless told otherwise, and prompts above it lose their oldest tokens **with no error and no warning** — retrieved evidence disappears and the model answers confidently from what is left. `OLLAMA_CONTEXT_LENGTH` (Compose) and `LLM_CONTEXT_TOKENS` (client) both default to 16384 and must be changed together. The API refuses a prompt that would not fit rather than letting the server truncate it; call `prompt_token_budget()` when assembling retrieved chunks to stay inside it.
+
+Measured on a 20-CPU / 15.5 GiB laptop with `qwen2.5:7b-instruct`: resident memory 5.1 GB at 4k and 5.9 GB at 16k; a 13.5k-token prompt took 177 s. Budget accordingly before enabling long-context retrieval on laptops. A per-request `num_ctx` override is ignored by the OpenAI-compatible endpoint.
+
+Tool calling was verified on 20 September 2026 (correct function selection, well-formed arguments, working tool-result round trip). Agent behaviour and content quality still require separate benchmarking.
 
 ## GPU workstream
 

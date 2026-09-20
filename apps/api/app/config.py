@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.3
     llm_max_tokens: int = 4096
     llm_timeout_seconds: int = 300
+    # Context window the server is actually serving. Must match the server's own
+    # setting (OLLAMA_CONTEXT_LENGTH / vLLM --max-model-len): servers truncate
+    # oversized prompts silently, so the client refuses them instead.
+    llm_context_tokens: int = 16384
 
     # ---- embeddings ----
     embedding_model: str = "BAAI/bge-m3"

@@ -15,6 +15,8 @@ Each teammate owns one private root `.env`, generated from `.env.example` by the
 | `LLM_MODEL=qwen2.5:7b-instruct` | Model name; pull the exact configured name in Ollama |
 | `LLM_API_KEY` | Placeholder required by the client; no external service key is needed |
 | `LLM_TIMEOUT_SECONDS=300` | Model request timeout; CPU generation may need adjustment |
+| `OLLAMA_CONTEXT_LENGTH=16384` | Context window the Ollama server serves. Its own default is 4096 and it truncates longer prompts silently |
+| `LLM_CONTEXT_TOKENS=16384` | Same number on the client side; the API refuses an oversized prompt rather than letting the server drop evidence |
 | `EMBEDDING_MODEL=BAAI/bge-m3` | Local sentence-transformers model |
 | `EMBEDDING_DIM=1024` | Must match the database vector width |
 | `EMBEDDING_DEVICE=cpu` | API/worker Docker images contain CPU PyTorch, including the GPU serving profile |

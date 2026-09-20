@@ -105,6 +105,11 @@ services:
     image: ollama/ollama@sha256:684d8674b4315fa18f4f0e973a118ec2652ed96f67563277839985175858e0ba
     profiles: ["cpu"]
     restart: unless-stopped
+    environment:
+      # Ollama defaults to 4096 and truncates longer prompts without an error,
+      # which silently deletes retrieved evidence. Keep in step with
+      # LLM_CONTEXT_TOKENS; raising it costs RAM (~5.1 GB at 4k, ~5.9 GB at 16k).
+      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-16384}
     ports:
       - "127.0.0.1:11434:11434"
     volumes:
