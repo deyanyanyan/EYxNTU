@@ -11,7 +11,11 @@ from typing import Callable
 
 from sqlalchemy.orm import Session
 
+from app.core.export.service import export_course
+from app.core.generation.lesson.service import generate_lessons
+from app.core.generation.plan.service import generate_plan
 from app.core.jobs import service as jobs
+from app.core.llm.client import run_blocking
 from app.core.rag.ingest import ingest_source
 from app.models.job import JobKind
 
@@ -20,6 +24,18 @@ Handler = Callable[[Session, str, dict], dict]
 
 def handle_ingest_source(db: Session, job_id: str, payload: dict) -> dict:
     return ingest_source(db, payload["source_id"], job_id=job_id)
+
+
+def handle_generate_plan(db: Session, job_id: str, payload: dict) -> dict:
+    return run_blocking(generate_plan(db, payload["project_id"], job_id=job_id))
+
+
+def handle_generate_lessons(db: Session, job_id: str, payload: dict) -> dict:
+    return run_blocking(generate_lessons(db, payload["project_id"], job_id=job_id))
+
+
+def handle_export_course(db: Session, job_id: str, payload: dict) -> dict:
+    return export_course(db, payload["project_id"], job_id=job_id)
 
 
 def _not_implemented(kind: str) -> Handler:
@@ -32,11 +48,12 @@ def _not_implemented(kind: str) -> Handler:
 
 HANDLERS: dict[str, Handler] = {
     JobKind.INGEST_SOURCE.value: handle_ingest_source,
-    JobKind.GENERATE_PLAN.value: _not_implemented("generate_plan"),            # M2
-    JobKind.GENERATE_LESSON_ASSETS.value: _not_implemented("generate_lesson_assets"),  # M3
+    # Single-pass baseline: no critique, no gates. See docs/HANDOFF.md.
+    JobKind.GENERATE_PLAN.value: handle_generate_plan,
+    JobKind.GENERATE_LESSON_ASSETS.value: handle_generate_lessons,
     JobKind.CRITIQUE_ASSET.value: _not_implemented("critique_asset"),          # M3
     JobKind.RENDER_SLIDES.value: _not_implemented("render_slides"),            # M3
     JobKind.RENDER_VIDEO.value: _not_implemented("render_video"),              # M4
-    JobKind.PACKAGE_SCORM.value: _not_implemented("package_scorm"),            # M4
+    JobKind.PACKAGE_SCORM.value: handle_export_course,                         # PPTX + SCORM 1.2
     JobKind.EVAL_RUN.value: _not_implemented("eval_run"),                      # M5
 }

@@ -4,7 +4,8 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { FileUp, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { PaneHeader, ThreePane } from "@/components/layout/three-pane";
-import { PipelineStepper } from "@/components/pipeline-stepper";
+import { CoursePanel, type Inspected } from "@/components/course-panel";
+import { PipelineStepper, type Stage } from "@/components/pipeline-stepper";
 import { Badge, statusTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,9 @@ export default function ProjectWorkbench({ params }: { params: Promise<{ id: str
   const [jobs, setJobs] = useState<Record<string, Job>>({});
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
-  const [selected, setSelected] = useState<SearchHit | null>(null);
+  const [selected, setSelected] = useState<Inspected | null>(null);
+  const [tab, setTab] = useState<"sources" | "course">("sources");
+  const [stage, setStage] = useState<{ current: Stage; done: Stage[] }>({ current: "Ingest", done: [] });
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => api.get<Project>(`/projects/${id}`).then(setProject), [id]);
@@ -61,7 +64,7 @@ export default function ProjectWorkbench({ params }: { params: Promise<{ id: str
   return (
     <Shell
       title={project ? project.name : <Skeleton className="h-4 w-40" />}
-      actions={<PipelineStepper current={ready ? "Plan" : "Ingest"} done={ready ? ["Ingest"] : []} />}
+      actions={<PipelineStepper current={stage.current} done={stage.done} />}
     >
       <ThreePane
         left={
@@ -99,7 +102,25 @@ export default function ProjectWorkbench({ params }: { params: Promise<{ id: str
           </>
         }
         center={
-          <div className="mx-auto max-w-3xl space-y-6 p-6">
+          <div>
+            <div role="tablist" aria-label="Workbench view" className="flex gap-1 border-b px-6 pt-3">
+              {(["sources", "course"] as const).map((t) => (
+                <button
+                  key={t}
+                  role="tab"
+                  aria-selected={tab === t}
+                  onClick={() => setTab(t)}
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium capitalize ${tab === t ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            {/* Kept mounted while hidden so running jobs keep streaming progress. */}
+            <div hidden={tab !== "course"}>
+              <CoursePanel projectId={id} ready={!!ready} onStage={setStage} onInspect={setSelected} />
+            </div>
+          <div hidden={tab !== "sources"} className="mx-auto max-w-3xl space-y-6 p-6">
             <div>
               <h2 className="text-base font-semibold">Knowledge base</h2>
               <p className="text-sm text-muted-foreground">Every generated block will cite one of these chunks. Search to verify what the model can see.</p>
@@ -124,6 +145,7 @@ export default function ProjectWorkbench({ params }: { params: Promise<{ id: str
               ))}
             </ul>
           </div>
+          </div>
         }
         right={
           <>
@@ -134,9 +156,15 @@ export default function ProjectWorkbench({ params }: { params: Promise<{ id: str
                   <div><span className="font-medium text-foreground">Source</span> {selected.source_name}</div>
                   {selected.heading_path && <div><span className="font-medium text-foreground">Section</span> {selected.heading_path}</div>}
                   {selected.page_start && <div><span className="font-medium text-foreground">Pages</span> {selected.page_start}{selected.page_end && selected.page_end !== selected.page_start ? `–${selected.page_end}` : ""}</div>}
-                  <div><span className="font-medium text-foreground">Similarity</span> <span className="font-mono">{selected.similarity}</span></div>
+                  {selected.similarity !== null && <div><span className="font-medium text-foreground">Similarity</span> <span className="font-mono">{selected.similarity}</span></div>}
                   <div><span className="font-medium text-foreground">Chunk</span> <span className="font-mono">{selected.chunk_id.slice(0, 8)}</span></div>
                 </div>
+                {selected.quote && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium">Quoted as evidence</p>
+                    <blockquote className="border-l-2 border-accent pl-2 text-xs">{selected.quote}</blockquote>
+                  </div>
+                )}
                 <pre className="whitespace-pre-wrap rounded-md border bg-muted/50 p-3 font-sans text-xs leading-relaxed">{selected.text}</pre>
               </div>
             ) : (
@@ -147,7 +175,7 @@ export default function ProjectWorkbench({ params }: { params: Promise<{ id: str
                     <p><span className="text-foreground">Audience:</span> {project.target_audience || "—"}</p>
                     <p><span className="text-foreground">Duration:</span> {project.duration_minutes ? `${project.duration_minutes} min` : "—"}</p>
                     <p><span className="text-foreground">Goals:</span> {project.learning_goals || "—"}</p>
-                    <p className="pt-2 opacity-70">Select a search result to inspect its provenance. Course planning unlocks once at least one source is ready (milestone M2).</p>
+                    <p className="pt-2 opacity-70">Select a search result or a citation to inspect its provenance. Course planning unlocks once at least one source is ready.</p>
                   </div>
                 )}
               </div>

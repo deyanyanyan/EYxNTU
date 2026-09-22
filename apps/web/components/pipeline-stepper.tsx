@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export const STAGES = ["Ingest", "Plan", "Generate", "Render", "Package"] as const;
+export const STAGES = ["Ingest", "Plan", "Generate", "Export"] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** Signature element: the document-to-course pipeline as a horizontal stepper. */

@@ -3,7 +3,7 @@
 Working notes for whoever (or whatever) picks this up next. Not a team document —
 `README.md`, `docs/ROADMAP.md` and `docs/project-brief.html` are the ones the team reads.
 
-**Written:** 21 September 2026 · **Base commit:** `64c3a40` on `main` · **All changes below are uncommitted.**
+**Updated:** 21 September 2026 · **Last commit:** `0f389ce` on `main` (context fix, brief, roadmap, first version of this file) · **Uncommitted:** the baseline pipeline in section 2e, README, and this update.
 
 The project owner is acting as PM, not implementer. They are comfortable with product
 reasoning and delegation, less so with the code. Explain consequences, not mechanisms,
@@ -12,6 +12,12 @@ and keep implementation detail out of the way unless asked for it.
 ---
 
 ## 1. The most important thing to know
+
+**Current priority, set by the owner on 21 September: a working product first, differentiation
+later.** A single-pass baseline now runs end to end (section 2e). Do not start building the
+evaluation layer unprompted — improve and harden the baseline until the owner says otherwise.
+The positioning below still stands; it is the *next* milestone, and the baseline is the thing
+it will be measured against.
 
 **EY gave feedback that changes the project's positioning.** They already have a prototype
 that turns documents into a course end to end, so generating a course is not this team's
@@ -113,6 +119,60 @@ assignments with blank name slots, green/red flags, risk register, kickoff check
 priorities still show export ahead of evaluation. The week-2 assignments are still correct.
 Republish by passing that URL as `url` — do not create a second artifact.
 
+### 2e. Built a single-pass baseline that runs end to end
+
+Upload → plan → approve → lessons → export now works, through the API and a **Course** tab on the
+project page. No critique, gates or revision — deliberately, so it is the baseline arm.
+
+| Step | Where | What it does |
+|---|---|---|
+| Plan | `app/core/generation/plan/service.py` | Breadth-first outline of every ready chunk → objectives call → syllabus call → `CoursePlan` / `Module` / `Lesson` with source chunk links. Caps at 8 lessons. |
+| Approve | `POST /projects/{id}/plan/{plan_id}/approve` | Status flip plus a `Review` row. Deliberately **not** workstream B's pause/resume design. |
+| Lessons | `app/core/generation/lesson/service.py` | Per lesson: planned chunks + retrieval → one deck call (5–7 slides with notes) → existing quiz generator (3 questions, validate-and-repair). Failures are recorded per lesson, not fatal. |
+| Export | `app/core/export/` | Deterministic, no model. Editable PPTX (placeholder layouts, notes, a Sources slide per lesson) and SCORM 1.2 (one SCO per lesson, grouped by module, quiz reports score against mastery 70). |
+| Shared | `app/core/generation/evidence.py` | Evidence packing to a token budget (`MAX_EVIDENCE_TOKENS = 5000`), `[n]` citation extraction, reference tables stored with each asset. |
+| API | `app/routers/course.py` | Enqueue plan / lessons / export (409 while one of the same kind is running), read plan and lesson detail, list and download exports. |
+| UI | `apps/web/components/course-panel.tsx` | Three step cards with live job progress, per-run numbers, lesson viewer with clickable citations into the inspector, authenticated downloads. |
+| Runner | `scripts/course_baseline.py` + `scripts/fixtures/baseline_course.md` | One command runs everything and writes `data/artifacts/baselines/<ts>.json`. The fixture is a deliberately fictional company handbook. |
+
+Supporting changes: `run_blocking()` in `client.py` (the worker runs each job in a fresh event loop
+and the cached async client otherwise fails with "Event loop is closed"); a real model-call counter
+(`llm_call_count()`); a `{slide_count}` variable in `packages/prompts/slides/deck.md`; stepper
+stages are now Ingest / Plan / Generate / Export.
+
+**First baseline, 21 Sep, this laptop, Northwind fixture, 30-minute brief** — record
+`data/artifacts/baselines/20260921-154627.json`:
+
+| | Result |
+|---|---|
+| Total wall clock | 27 min (ingest 20 s · plan 3 min · lessons 23.5 min · export 0.2 s) |
+| Plan | 6 objectives, 6 modules × 1 lesson, 2 model calls, 0 invalid references, every lesson linked to a source |
+| Lessons | 6 decks, 39 slides, 20 model calls, 0 failed steps, 2.7–6.4 min per lesson |
+| Citations | 43 of 51 content bullets cited (84%), 0 citations pointing at nothing |
+| Quiz | 12 of 18 questions kept; 5 rejected as `length_giveaway`, 1 as `span_not_found` |
+| Export | 53-slide PPTX, SCORM with 6 lesson pages; both open |
+
+**What the numbers hide — found by reading every bullet against the handbook:**
+
+- **Facts are accurate.** Every specific rule checked (14 characters, 1 hour, extension 4400,
+  5-minute lock, 7-day updates, vault-only storage) matches the source. One mild mis-citation:
+  "MFA adds an extra layer of security [2]" is general knowledge the source does not state.
+- **Topics bleed across lessons — the biggest weakness.** Incident reporting appears in 4 of 6
+  lessons; the phishing lesson has a clear-desk slide. Retrieval pulls neighbouring chunks and the
+  deck prompt does not know what the other lessons cover. Citation counts cannot see this.
+  Quiz questions repeat across lessons too (two near-identical MFA-prompt questions).
+- **The plan is flat.** One lesson per module, i.e. one per handbook section; 35 minutes planned
+  against 30 requested.
+- **One quiz rejection is a validator false positive.** The model quoted the portal button name
+  with single quotes where the source has double quotes, and the exact-match span check rejected
+  it. Quote normalisation would fix it. Left alone so the baseline records current behaviour — a
+  candidate first improvement.
+- `length_giveaway` (answer > 2.5x the shortest option) rejected 5 of 18. Policy answers are
+  naturally specific; unclear yet whether the threshold or the model is at fault.
+
+The project is kept as **"Baseline 9a7072"** (`56d0c8d6-...`) so the owner can open it in the web
+UI. It has two exports: the second was queued by an ad-hoc endpoint check.
+
 ---
 
 ## 3. Deliberately NOT fixed
@@ -129,25 +189,25 @@ has not said to take them. **Ask before implementing.**
 
 ## 4. What's next, in order
 
-1. **Owner decisions first.** Names against workstreams A–D; create the nine sprint tickets
-   (`docs/SPRINT_01.md` lists them, they have never been created on GitHub); reset the
-   supervisor's expectation that Friday's demo is grounded search, not generated content.
-2. **Commit this work.** Nothing here is committed yet. Suggested split: one commit for the
-   context fix + tests + env/docs, one for the brief and roadmap rewrite.
-3. **Design the gate mechanism** (workstream B). Still the highest-leverage unwritten thing:
-   how a job pauses for a human decision and resumes from a checkpoint. The EY pivot makes it
-   *more* central, since pass / revise / escalate is the routing decision. No orchestration
-   code should be written before this exists as a decision record.
-4. **Build the first evaluator** (workstream C). Start with grounding, because the deterministic
-   half already exists — `apps/api/app/core/generation/quiz/service.py:47` validates that a
-   quoted span appears verbatim in the retrieved context. Generalise that from quizzes to all
-   asset kinds, then add the model-scored half on top.
-5. **Corpus and 30 labelled questions** (workstream A) — blocks every measurement.
-6. **Four-machine setup matrix** (workstream D) — only one Windows machine has ever been verified.
-7. **Only then:** planning workflow, lesson authoring, reduced-scope export.
+1. **Owner decisions.** Names against workstreams A–D; create the sprint tickets
+   (`docs/SPRINT_01.md`); agree what Friday's demo shows now that a generated course exists.
+2. **Commit the baseline pipeline.** Sections 2a–2d are in `0f389ce`; section 2e (pipeline, UI,
+   runner, fixture, README, this file) is uncommitted.
+3. **Owner looks at the output.** Open "Baseline 9a7072" in the web UI and the exported PPTX. The
+   owner has not seen generated content yet and should judge it before the team optimises numbers.
+4. **Baseline hardening** — the owner's stated priority. In rough value order:
+   - Stop topic bleed: tell the deck prompt what the *other* lessons cover, and keep lesson
+     evidence to its planned chunks plus retrieval that excludes other lessons' chunks.
+   - Normalise quotes and whitespace in the quiz span check (`quiz/service.py:47`).
+   - Check the SCORM package in a real player (SCORM Cloud or Moodle) — never done.
+   - Run the baseline on a real PDF and a PPTX, not only Markdown.
+   - Asset review and editing in the UI (assets are read-only; exports flag `includes_unapproved`).
+5. **Record every change as a new baseline run** so improvements are measured, not asserted.
+   Keep the fixture, brief and model fixed when comparing.
+6. **Then** the evaluation layer from section 1. Its coherence gate would target exactly the
+   topic-bleed problem the baseline exposed.
 
-Ask EY for their prototype's output format. If the evaluation layer can score *their* output,
-that is a far stronger demonstration than scoring only this team's own.
+The two bugs in section 3 are still A's and C's tickets.
 
 ---
 
@@ -181,6 +241,11 @@ docker compose --env-file .env -f infra/docker-compose.yml exec -T api ruff chec
 - **Model weights are already cached** in `data/models/ollama` (4.4 GB, `qwen2.5:7b-instruct`,
   ID `845dbda0ea48`). No pull needed. `ollama ps` shows empty after ~5 min idle — that is unload,
   not failure.
+- **Long runs outlive the Bash tool's 10-minute cap.** Stopping `docker compose exec` does *not*
+  kill the process inside the container. For the baseline runner, run it detached or watch the
+  `jobs` table; the image has no `ps` — scan `/proc/*/cmdline` with Python instead.
+- **`web` bakes lint and type checks into its image build**, so `docker compose ... build web` is
+  the frontend compile test. It passed clean for the Course panel.
 - **`.env` is gitignored and contains real credentials.** It was edited locally to add the two
   new vars. Never commit it, never print it.
 
@@ -194,10 +259,13 @@ docker compose --env-file .env -f infra/docker-compose.yml exec -T api ruff chec
 
 ## 6. Verification status
 
-`20 passed` (11 pre-existing + 9 new), `ruff check . --select F` clean, and
-`smoke.py --llm` passes both the application and structured-output checks.
+- `32 passed` (11 original + 9 context guard + 12 course pipeline), `ruff check . --select F` clean.
+- Web image build (Next.js lint + TypeScript + production build) passes.
+- `smoke.py --llm` passed after the context fix.
+- Full pipeline passed end to end via `course_baseline.py` against the live model; the lesson
+  detail endpoint was exercised for all six lessons.
 
-Not re-verified since these changes: the `--ingest` fixtures, restart persistence, and the
-offline rehearsal. Run `smoke.py --ingest --llm` before claiming the full operational check.
-`docs/VERIFICATION.md` has not been updated with this session's results — worth doing when
-the work is committed.
+**Not verified:** clicking through the Course tab in a browser (it compiles and its endpoints work,
+but no one has used it); the SCORM package in any LMS player; PDF or PPTX sources through
+generation; `smoke.py --ingest`, restart persistence and the offline rehearsal since these changes.
+`docs/VERIFICATION.md` has not been updated with this session's results.

@@ -5,10 +5,13 @@ so swapping models or servers is an env change, never a code change.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import math
+from collections.abc import Coroutine
 from functools import lru_cache
+from typing import Any
 
 from openai import AsyncOpenAI, OpenAI
 from pydantic import BaseModel, ValidationError
@@ -23,6 +26,19 @@ log = logging.getLogger(__name__)
 _CHARS_PER_TOKEN = 3.5
 # Per-message chat-template overhead (role markers, separators).
 _MESSAGE_OVERHEAD_TOKENS = 4
+
+# Completed requests to the model server in this process. Generation jobs report
+# the delta, since repair retries make the real count differ from the step count.
+_call_count = 0
+
+
+def llm_call_count() -> int:
+    return _call_count
+
+
+def _count_call() -> None:
+    global _call_count
+    _call_count += 1
 
 
 class ContextOverflowError(RuntimeError):
@@ -87,6 +103,27 @@ def get_async_client() -> AsyncOpenAI:
     return AsyncOpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key, timeout=settings.llm_timeout_seconds)
 
 
+def run_blocking[T](coro: Coroutine[Any, Any, T]) -> T:
+    """Run an async LLM workflow from synchronous code (the worker's job handlers).
+
+    `asyncio.run` creates a new event loop per call, but the cached AsyncOpenAI
+    client pools connections bound to the loop that opened them; reusing it in
+    the next job fails with "Event loop is closed". Start and end each run with
+    a fresh client.
+    """
+
+    async def _main() -> T:
+        try:
+            return await coro
+        finally:
+            if get_async_client.cache_info().currsize:
+                await get_async_client().close()
+            get_async_client.cache_clear()
+
+    get_async_client.cache_clear()
+    return asyncio.run(_main())
+
+
 @lru_cache
 def get_sync_client() -> OpenAI:
     return OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key, timeout=settings.llm_timeout_seconds)
@@ -111,6 +148,7 @@ async def chat_text(system: str, user: str, *, temperature: float | None = None,
         temperature=settings.llm_temperature if temperature is None else temperature,
         max_tokens=reply_tokens,
     )
+    _count_call()
     _warn_if_truncated(resp, estimate)
     return resp.choices[0].message.content or ""
 
@@ -138,6 +176,7 @@ async def chat_structured[T: BaseModel](system: str, user: str, schema: type[T],
             max_tokens=settings.llm_max_tokens,
             response_format={"type": "json_object"},
         )
+        _count_call()
         _warn_if_truncated(resp, estimate)
         raw = resp.choices[0].message.content or ""
         try:

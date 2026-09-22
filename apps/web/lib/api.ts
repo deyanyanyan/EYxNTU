@@ -46,6 +46,27 @@ export async function login(email: string, password: string) {
   return res.json() as Promise<{ access_token: string; user: import("@/lib/auth").SessionUser }>;
 }
 
+/** Fetch an authenticated file and hand it to the browser as a download. */
+export async function downloadFile(path: string, filename: string) {
+  const token = getToken();
+  const res = await fetch(`${API_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {}
+    throw new ApiError(res.status, detail);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /** Subscribe to a job's SSE stream. Returns an unsubscribe function. */
 export function watchJob(jobId: string, onUpdate: (job: Job) => void, onEnd?: () => void) {
   const token = getToken();
@@ -72,3 +93,27 @@ export type Project = { id: string; name: string; description: string | null; ow
 export type SearchHit = { chunk_id: string; source_id: string; source_name: string; text: string; heading_path: string | null; page_start: number | null; page_end: number | null; similarity: number };
 export type User = { id: string; email: string; name: string; role: string; org_unit: string | null; is_active: boolean };
 export type PromptVersion = { id: string; task: string; name: string; system_prompt: string | null; templates: Record<string, string>; notes: string | null; is_active: boolean; created_by_name: string | null; last_activated_at: string | null; created_at: string };
+
+// ---- course authoring (mirror apps/api/app/schemas/course.py) ----
+export type Objective = { id: string; text: string; bloom_level: string; source_chunk_ids: string[] };
+export type LessonSummary = { id: string; position: number; title: string; estimated_minutes: number | null; objective_ids: string[]; source_chunk_count: number; slides: number; questions: number; generated_at: string | null };
+export type CourseModule = { id: string; position: number; title: string; description: string | null; lessons: LessonSummary[] };
+export type CoursePlan = {
+  id: string; version: number; title: string; summary: string | null; status: "draft" | "in_review" | "approved" | "rejected";
+  learning_objectives: Objective[]; coverage: Record<string, number> | null; source_names: Record<string, string>; modules: CourseModule[]; created_at: string;
+};
+export type Reference = { chunk_id: string; source_name: string; heading_path: string | null; page_start: number | null; page_end: number | null };
+export type SlideContent = { id: string; layout: string; title: string; bullets: string[]; table: string[][] | null; notes: string };
+export type DeckContent = {
+  slides: SlideContent[]; references: Record<string, Reference>;
+  citation_stats: { slides: number; citation_markers: number; invalid_citation_numbers: number[]; bullets_checked: number; bullets_without_citation: number };
+};
+export type QuizQuestion = { stem: string; options: string[]; answer_index: number; explanation: string; difficulty: string; source_span: string; chunk_id: string | null };
+export type QuizContent = { questions: QuizQuestion[]; rejected: { issues: { code: string; detail: string }[] }[]; references: Record<string, Reference> };
+export type Asset<C> = { id: string; kind: string; version: number; approval: string; content: C | null; generated_with_model: string | null; created_at: string };
+export type CitationDetail = { block_id: string; chunk_id: string; quote: string | null; source_name: string; heading_path: string | null; page_start: number | null; page_end: number | null; text: string };
+export type LessonDetail = { lesson: LessonSummary; module_title: string; slides: Asset<DeckContent> | null; quiz: Asset<QuizContent> | null; citations: CitationDetail[] };
+export type CourseExport = {
+  id: string; created_at: string;
+  content: { course_title: string; plan_version: number; lessons: number; questions: number; includes_unapproved: boolean; files: Record<string, string> } | null;
+};
