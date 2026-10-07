@@ -4,6 +4,8 @@ Scope authority: the revised [project brief](project-brief.html), dated 21 Septe
 
 The [current two-week plan](SPRINT_01.md) defines the immediate commitments. Later dates below are targets, not claims that the features exist.
 
+> **Proposed change, 8 October 2026:** after further EY feedback, new features (including narrated video) are paused and the remaining schedule is replaced by the [evaluation framework plan](EVAL_FRAMEWORK_PLAN.md): SME-aligned judge, then a frontier-vs-local benchmark across Gemini, Claude and Qwen 30B arms. The table below stands until the team agrees that plan.
+
 | Milestone | Target | Exit criteria |
 |---|---|---|
 | Foundation | 7-18 Sep | Docker setup and private credentials; auth/projects; tested startup; all teammates onboarded |
