@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.core.auth.bootstrap import ensure_default_admin
-from app.routers import auth, course, health, jobs, projects, prompts, search, sources, users
+from app.routers import auth, course, evaluation, health, jobs, projects, prompts, search, sources, users
 
 logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("api")
@@ -46,3 +46,4 @@ app.include_router(search.router)
 app.include_router(jobs.router)
 app.include_router(prompts.router)
 app.include_router(course.router)
+app.include_router(evaluation.router)

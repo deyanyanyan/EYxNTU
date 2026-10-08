@@ -1,6 +1,6 @@
 # LMS Studio
 
-Local document-to-course authoring prototype for the NTU / EY project. A single-pass baseline now runs end to end: upload documents, generate a course plan, approve it, generate a slide deck and quiz per lesson with source citations, and export an editable PPTX plus a SCORM 1.2 package. The evaluation layer (critique, gates and revision) is the next milestone and will be measured against this baseline.
+Local document-to-course authoring prototype for the NTU / EY project. A single-pass baseline runs end to end: upload documents, generate a course plan, approve it, generate a slide deck and quiz per lesson with source citations, and export an editable PPTX plus a SCORM 1.2 package. The current evaluation milestone is an offline batch benchmark over saved runs; it reports quality and failure patterns without changing generation or approval.
 
 The revised scope uses pretrained models and agentic workflows; training and fine-tuning are not deliverables. See [scope and roadmap](docs/ROADMAP.md) and [the next two weeks](docs/SPRINT_01.md).
 
@@ -52,7 +52,8 @@ Sign in, create a project with a course brief, and upload sources. Then open the
 | Lesson decks with speaker notes and validated quizzes, with citations | Single-pass baseline; no critique or revision yet |
 | PPTX and SCORM 1.2 export | Implemented; not yet checked in a real LMS player |
 | Baseline runner (`scripts/course_baseline.py`) | Implemented; records per-step counts, citation quality, model calls and time |
-| Critique, evaluation gates, bounded revision | Next milestone; helper code and prompts exist |
+| Offline batch evaluation | Capture/scoring commands and a read-only admin report viewer added; first four-lesson Gemini-scored batch reviewed as an exploratory baseline. See `packages/eval/README.md` |
+| In-loop critique, evaluation gates, bounded revision | Future workflow experiments; not part of the current benchmark |
 | LangGraph / LangChain agent orchestration | Planned |
 | Narrated video | Planned; optional TTS service skeleton exists |
 | Asset review and editing in the UI | Planned; assets are read-only |

@@ -116,6 +116,7 @@ def reference_table(chunks: list[RetrievedChunk]) -> dict[str, dict]:
             "heading_path": c.heading_path,
             "page_start": c.page_start,
             "page_end": c.page_end,
+            "similarity": c.similarity,
         }
         for i, c in enumerate(chunks, 1)
     }

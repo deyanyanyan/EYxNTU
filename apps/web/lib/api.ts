@@ -94,6 +94,54 @@ export type SearchHit = { chunk_id: string; source_id: string; source_name: stri
 export type User = { id: string; email: string; name: string; role: string; org_unit: string | null; is_active: boolean };
 export type PromptVersion = { id: string; task: string; name: string; system_prompt: string | null; templates: Record<string, string>; notes: string | null; is_active: boolean; created_by_name: string | null; last_activated_at: string | null; created_at: string };
 
+// ---- offline evaluation artifacts (admin-only) ----
+export type EvaluationDimension = { score: number; feedback: string; issues: string[] };
+export type EvaluationUsage = {
+  calls: number; prompt_tokens: number | null; completion_tokens: number | null;
+  usage_reported_calls: number; latency_ms: number; errors: number;
+};
+export type EvaluationScore = {
+  score_version: number; run_id: string | null; generator: Record<string, unknown>;
+  generation: Record<string, unknown>; lesson_id: string | null; title: string | null;
+  checks: { lesson_id: string | null; title: string | null; counts: Record<string, unknown>; findings: Record<string, unknown>[] };
+  judge: {
+    status: string; model: string | null; prompt_sha256: string | null;
+    same_model_endpoint_as_generator: boolean;
+    dimensions: Partial<Record<"grounding" | "coherence" | "pedagogy", EvaluationDimension>>;
+    dimension_errors: Record<string, string>; usage: EvaluationUsage | null;
+  };
+};
+export type EvaluationCourse = {
+  score_version: number; run_id: string | null; generator: Record<string, unknown>;
+  generation: Record<string, unknown>; lessons_scored: number;
+  judge_means: Record<"grounding" | "coherence" | "pedagogy", number | null>;
+  judge_lesson_score_stddev: Record<"grounding" | "coherence" | "pedagogy", number | null>;
+  check_totals: Record<string, unknown>;
+  course_overlap: {
+    shared_cited_chunks: number; shared_chunk_examples: { chunk_id: string; lesson_ids: string[] }[];
+    near_duplicate_bullet_pairs: number; near_duplicate_examples: Record<string, unknown>[];
+  };
+};
+export type EvaluationBatch = {
+  batch_id: string; created_at: string;
+  input_runs: { run_id: string | null; generator: Record<string, unknown> | null; data_classification: string | null }[];
+  judge: { model: string; base_url: string; temperature: number; max_tokens: number; context_tokens: number; timeout_seconds: number; prompt_sha256: string } | null;
+  output_files: string[];
+};
+export type EvaluationBatchDetail = {
+  manifest: EvaluationBatch; scores: EvaluationScore[]; courses: EvaluationCourse[]; summary_markdown: string;
+};
+export type EvaluationJudgeConfig = { judge_configured: boolean; judge_model: string | null };
+export type EvaluationRun = {
+  run_id: string; captured_at: string; data_classification: string; generator: Record<string, unknown>;
+  source_names: string[]; lesson_count: number;
+};
+export type EvaluationJob = {
+  job_id: string; status: "queued" | "running" | "completed" | "failed"; phase: string; message: string;
+  use_judge: boolean; judge_model: string | null; created_at: string; updated_at: string;
+  run_id: string | null; batch_id: string | null; completed_at: string | null;
+};
+
 // ---- course authoring (mirror apps/api/app/schemas/course.py) ----
 export type Objective = { id: string; text: string; bloom_level: string; source_chunk_ids: string[] };
 export type LessonSummary = { id: string; position: number; title: string; estimated_minutes: number | null; objective_ids: string[]; source_chunk_count: number; slides: number; questions: number; generated_at: string | null };

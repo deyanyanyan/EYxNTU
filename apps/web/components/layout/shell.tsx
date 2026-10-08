@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BookOpenText, FolderKanban, LogOut, Moon, Settings2, Sun, Users } from "lucide-react";
+import { Activity, BookOpenText, ClipboardCheck, FolderKanban, LogOut, Moon, Settings2, Sun, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/hooks/use-session";
 import { useTheme } from "@/hooks/use-theme";
@@ -17,6 +17,7 @@ const NAV: NavItem[] = [
   { href: "/learn", label: "Learn", icon: BookOpenText, roles: ["admin", "instructor", "learner"] },
   { href: "/admin/users", label: "Users", icon: Users, roles: ["admin"] },
   { href: "/admin/prompts", label: "Prompts", icon: Settings2, roles: ["admin"] },
+  { href: "/admin/evaluation", label: "Evaluation", icon: ClipboardCheck, roles: ["admin"] },
 ];
 
 /**

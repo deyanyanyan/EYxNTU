@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.llm.client import chat_structured
+from app.core.llm.client import LLMTarget, chat_structured
 from app.core.prompts.service import PromptSet, get_active
 
 
@@ -79,6 +79,41 @@ async def critique_content(
         CritiqueSummary,
     )
     return CritiqueResult(grounding, coherence, pedagogy, summary, prompts.version_id)
+
+
+async def score_dimensions(
+    content: dict | str,
+    rag_context: str,
+    *,
+    audience: str = "",
+    objectives: str = "",
+    prompts: PromptSet,
+    target: LLMTarget,
+) -> tuple[dict[str, DimensionScore], dict[str, str]]:
+    """Score the three dimensions without the workflow-oriented revise summary.
+
+    The offline batch benchmark reports these dimensions and their findings. It
+    deliberately does not turn the scores into a pass/revise action.
+    """
+    content_str = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False, indent=2)
+    common = dict(content=content_str, rag_context=rag_context, audience=audience, objectives=objectives)
+    names = ("grounding", "coherence", "pedagogy")
+    results = await asyncio.gather(
+        *(chat_structured(prompts.system_prompt, prompts.render(name, **common), DimensionScore, target=target) for name in names),
+        return_exceptions=True,
+    )
+    scores: dict[str, DimensionScore] = {}
+    errors: dict[str, str] = {}
+    for name, result in zip(names, results, strict=True):
+        if isinstance(result, asyncio.CancelledError):
+            raise result
+        if isinstance(result, Exception):
+            errors[name] = type(result).__name__
+        elif isinstance(result, BaseException):
+            raise result
+        else:
+            scores[name] = result
+    return scores, errors
 
 
 def critique_sync(db: Session, content: dict | str, rag_context: str, **kw) -> CritiqueResult:

@@ -2,6 +2,8 @@
 
 **Status:** proposal for team review · drafted 8 October 2026 · supersedes the "Lesson authoring and gates", "Evaluation evidence" and "Video and LMS export" rows of the [roadmap](ROADMAP.md) once agreed.
 
+> **Scope update (8 October 2026):** This earlier broad proposal is not the active implementation scope. The current direction is a post-generation batch benchmark that reports findings and makes no pass/revise/escalate or product decisions. Follow [EVAL_IMPLEMENTATION_PLAN.md](EVAL_IMPLEMENTATION_PLAN.md) for the implementation and post-EY experiment sequence. The in-loop critique/revision and product-gate sections below are conditional future options, not current deliverables.
+
 ## 1. Why this plan exists
 
 EY's feedback after the baseline demo:

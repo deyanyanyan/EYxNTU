@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     # oversized prompts silently, so the client refuses them instead.
     llm_context_tokens: int = 16384
 
+    # ---- benchmark judge (used only by the offline evaluation command) ----
+    judge_base_url: str = ""
+    judge_api_key: str = ""
+    judge_model: str = ""
+    judge_temperature: float = 0.0
+    judge_max_tokens: int = 4096
+    judge_timeout_seconds: int = 300
+    judge_context_tokens: int = 16384
+
     # ---- embeddings ----
     embedding_model: str = "BAAI/bge-m3"
     embedding_dim: int = 1024
