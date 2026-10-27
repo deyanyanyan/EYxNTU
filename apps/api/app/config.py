@@ -46,6 +46,20 @@ class Settings(BaseSettings):
     # oversized prompts silently, so the client refuses them instead.
     llm_context_tokens: int = 16384
 
+    # ---- reviewer (custom evaluator; separate from the generation model) ----
+    # A LoRA adapter served by the gpu-profile inference container under its own model
+    # name. Off until a validated adapter is deployed, so nothing calls it by accident.
+    reviewer_enabled: bool = False
+    reviewer_base_url: str = "http://localhost:8001/v1"
+    reviewer_api_key: str = "local-no-key-needed"
+    reviewer_model: str = "reviewer"
+    reviewer_max_tokens: int = 768
+    reviewer_timeout_seconds: int = 300
+    # The adapter was trained and evaluated on reviews that fit in 4K tokens; longer ones
+    # are split into scoped cases, so the client refuses rather than truncating evidence.
+    reviewer_context_tokens: int = 8192
+    reviewer_enable_thinking: bool = False
+
     # ---- embeddings ----
     embedding_model: str = "BAAI/bge-m3"
     embedding_dim: int = 1024

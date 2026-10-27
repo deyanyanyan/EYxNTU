@@ -121,24 +121,42 @@ services:
       retries: 12
 
   # ---- gpu profile: vLLM on the H100 -----------------------------------------
+  # One base model plus the custom LoRA adapters listed in VLLM_LORA_MODULES; each
+  # adapter is selected per request by its name (see services/inference/README.md).
   inference:
-    image: vllm/vllm-openai:latest
+    # vLLM 0.32.0: the version the reviewer adapter is evaluated with on GaaS. LoRA support
+    # for the hybrid Qwen3.5/3.8 architecture has changed between releases, so move this
+    # digest only together with a passing `make served-check`.
+    image: vllm/vllm-openai:v0.32.0@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
     profiles: ["gpu"]
     restart: unless-stopped
     ipc: host
+    entrypoint: ["/bin/bash", "/opt/lms/serve.sh"]
+    # Only the serving settings: the full .env also holds database and admin secrets.
     environment:
       HF_HOME: /data/models/hf
       HF_HUB_OFFLINE: "1"
-    command: >
-      --model ${VLLM_MODEL}
-      --max-model-len ${VLLM_MAX_MODEL_LEN:-32768}
-      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.90}
-      --enable-prefix-caching
-      --served-model-name ${VLLM_MODEL} lms-base
+      SERVE_MODEL: ${VLLM_MODEL}
+      SERVE_BASE_ID: ${VLLM_BASE_ID:-}
+      SERVE_REVISION: ${VLLM_REVISION:-}
+      SERVE_MAX_MODEL_LEN: ${VLLM_MAX_MODEL_LEN:-32768}
+      SERVE_GPU_MEMORY_UTILIZATION: ${VLLM_GPU_MEMORY_UTILIZATION:-0.90}
+      SERVE_LORA_MODULES: ${VLLM_LORA_MODULES:-}
+      SERVE_MAX_LORAS: ${VLLM_MAX_LORAS:-2}
+      SERVE_MAX_LORA_RANK: ${VLLM_MAX_LORA_RANK:-16}
+      SERVE_EXTRA_ARGS: ${VLLM_EXTRA_ARGS:-}
     ports:
       - "127.0.0.1:8001:8000"
     volumes:
       - ../data:/data
+      - ./inference/serve.sh:/opt/lms/serve.sh:ro
+    healthcheck:
+      # Loading and compiling a 9-27B model takes minutes: `up --wait` waits for this.
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 15s
+      timeout: 6s
+      start_period: 900s
+      retries: 8
     deploy:
       resources:
         reservations:
