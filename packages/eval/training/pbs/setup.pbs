@@ -1,0 +1,56 @@
+#!/bin/bash
+#PBS -N evaltrain-setup
+#PBS -l select=1:ncpus=4
+#PBS -l walltime=12:00:00
+# One-time setup in the data-mover queue (no GPU), because the login node must not run
+# work: create the pinned venv, stage both model revisions, check the environment.
+#   bash pbs/submit.sh setup            # everything
+#   STEP=models bash pbs/submit.sh setup
+set -euo pipefail
+cd "$PBS_O_WORKDIR"
+export EVALTRAIN_SETUP=1
+# shellcheck disable=SC1091
+source pbs/env.sh
+step=${STEP:-all}
+mkdir -p "$EVALTRAIN_ROOT/logs"
+exec > >(tee -a "$EVALTRAIN_ROOT/logs/${PBS_JOBID%%.*}-setup.log") 2>&1
+echo "job=${PBS_JOBID} host=$(hostname) start=$(date -Is) step=${step}"
+
+if [ "$step" = all ] || [ "$step" = env ]; then
+  if [ ! -f "$EVALTRAIN_ENV/bin/activate" ]; then
+    python3 -m venv "$EVALTRAIN_ENV"
+  fi
+  # shellcheck disable=SC1091
+  source "$EVALTRAIN_ENV/bin/activate"
+  python -m pip install --upgrade pip
+  python -m pip install -r requirements/cluster.txt
+  python -m pip install -e .
+  python -m pip freeze > "$EVALTRAIN_ENV.freeze.txt"
+  python - <<'EOF'
+import importlib.metadata as md
+for p in ("torch", "torchvision", "transformers", "peft", "trl", "datasets", "ms_swift", "vllm", "flash-linear-attention", "qwen_vl_utils"):
+    print(f"{p:24s} {md.version(p)}")
+import fla, swift, vllm  # noqa: F401  (fails loudly if any of them cannot be imported)
+print("imports ok")
+EOF
+fi
+
+if [ "$step" = all ] || [ "$step" = data ]; then
+  prepared="$EVALTRAIN_ROOT/prepared/v2"
+  if [ -f "$prepared/lengths.json" ] && python -m evaltrain.prepare --out "$prepared" --verify manifests/v2/data_record.json; then
+    echo "prepared data present and verified; not rebuilding"
+  else
+    python -m evaltrain.acquire --root "$EVALTRAIN_ROOT" --lock manifests/sources.lock.json
+    python -m evaltrain.prepare --raw "$EVALTRAIN_ROOT/raw" --out "$prepared"
+    python -m evaltrain.prepare --out "$prepared" --verify manifests/v2/data_record.json
+    python -m evaltrain.lengths --prepared "$prepared" --tokenizer Qwen/Qwen3.5-9B \
+      --revision c202236235762e1c871ad0ccb60c8ee5ba337b9a --max-length 4096
+  fi
+fi
+
+if [ "$step" = all ] || [ "$step" = models ]; then
+  # Revisions must match configs/*.yaml.
+  hf download Qwen/Qwen3.5-9B --revision c202236235762e1c871ad0ccb60c8ee5ba337b9a
+  hf download Qwen/Qwen3.8-27B --revision 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0
+fi
+echo "done $(date -Is)"

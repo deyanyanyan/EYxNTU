@@ -1,0 +1,25 @@
+#!/bin/bash
+#PBS -N evaltrain-train
+#PBS -l select=1:ncpus=12:ngpus=1:mem=128gb
+#PBS -l walltime=06:00:00
+# Submit through pbs/submit.sh, which sets project, queue, log directory, walltime,
+# resources and CONFIG (12 CPUs per GPU follows the site templates; mem= is host RAM).
+
+JOB_START_EPOCH=$(date +%s)  # the walltime budget counts from here, before environment setup
+set -euo pipefail
+cd "$PBS_O_WORKDIR"
+# shellcheck disable=SC1091
+source pbs/env.sh
+: "${CONFIG:?submit through pbs/submit.sh}"
+# PBS copies stdout only when the job ends; keep a live copy on shared storage.
+mkdir -p "$EVALTRAIN_ROOT/logs"
+exec > >(tee -a "$EVALTRAIN_ROOT/logs/${PBS_JOBID%%.*}-train.log") 2>&1
+
+echo "job=${PBS_JOBID} host=$(hostname) start=$(date -Is) config=${CONFIG} walltime_s=${WALLTIME_S:-21600}"
+nvidia-smi --query-gpu=index,name,memory.total,driver_version --format=csv
+
+python -m evaltrain.train \
+  --config "$CONFIG" \
+  --job-start-epoch "$JOB_START_EPOCH" \
+  --walltime-seconds "${WALLTIME_S:-21600}" \
+  ${STOP_AFTER_STEPS:+--stop-after-steps "$STOP_AFTER_STEPS"}

@@ -1,0 +1,55 @@
+# Main candidate, queued to run after the 9B chain (2026-10-27): prompted baselines
+# (arms base and base-thinking), then LoRA training on all human-labelled RAGTruth
+# rows, a capped Prometheus share and Oak's 61 demonstration rows. The plan's separate
+# ablation runs (rubric-only, grounding-only) are skipped to save the project's single
+# GPU slot.
+#
+# Oak was added after the 9B pilot (pilot-9b-v1), trained without it, collapsed on the
+# Oak dev split: it scored every distractor question 1 (MAE 1.93 -> 2.06), while
+# RAGTruth and Prometheus improved. Only Oak's demonstration rows are permitted for
+# training; its dev and test partitions stay held out.
+run_id: main-27b-v1
+seed: 42
+
+model:
+  id: Qwen/Qwen3.8-27B
+  revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0  # main on 2026-10-27 (55.6 GB BF16)
+  template: qwen3_8  # dedicated template: preserves historical thinking; xhigh effort when thinking is on
+
+data:
+  version: v1
+  max_length: 4096
+  mixture:
+    ragtruth_grounding: {}  # all 13,453 training rows: the human labels carry the expected gain
+    prometheus_rubric: {n: 3000, per_group_cap: 4}  # GPT-4 labels: a capped share, >= 750 rubrics
+    oak_distractors: {repeat: 4}  # all 61 demonstration rows, replayed 4x (244 rows, ~1.5% of the mix)
+
+lora:
+  rank: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: all-linear
+
+train:
+  epochs: 1
+  learning_rate: 1.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.05
+  per_device_batch_size: 1
+  grad_accum: 16  # 16,697 rows -> 1,044 optimizer steps
+  attn_impl: sdpa
+  packing: false
+  logging_steps: 5
+  save_total_limit: 3
+
+walltime:
+  # 6-hour jobs in gpu_free_normal; a rank-16 27B LoRA checkpoint (adapter + optimizer,
+  # ~1-2 GB) saves well inside the reserve. Not part of the training hash.
+  reserve_minutes: 10
+  save_every_minutes: 15
+
+eval:
+  tasks: [prometheus_rubric, ragtruth_grounding, oak_distractors]
+  limit_per_task: 600
+  max_model_len: 8192
+  batch_size: 128
