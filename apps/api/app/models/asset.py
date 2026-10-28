@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import enum
+from datetime import datetime
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -49,6 +50,8 @@ class Asset(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     generated_with_model: Mapped[str | None] = mapped_column(String(255), nullable=True)
     prompt_version_id: Mapped[str | None] = mapped_column(ForeignKey("prompt_versions.id"), nullable=True)
+    # Set when a newer version replaces this one; kept so it can be restored.
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     lesson = relationship("Lesson", back_populates="assets")
     citations = relationship("Citation", back_populates="asset", cascade="all, delete-orphan")

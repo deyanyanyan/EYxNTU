@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 
+from app.core.generation.brief import appendix
 from app.core.llm.client import chat_structured
 from app.core.prompts.service import PromptSet
 from app.core.rag.retriever import RetrievedChunk, citation_map, format_context
@@ -69,6 +70,7 @@ async def generate_quiz(
     objectives: str = "",
     existing_stems: list[str] | None = None,
     auto_fix: bool = True,
+    instructions: str = "",
 ) -> tuple[list[dict], list[dict]]:
     """Return (accepted_questions, rejected_with_reasons). Each accepted question carries `chunk_id`."""
     context = format_context(chunks)
@@ -77,7 +79,8 @@ async def generate_quiz(
 
     batch = await chat_structured(
         prompts.system_prompt,
-        prompts.render("generate", rag_context=context, count=str(count), difficulty_mix=difficulty_mix, objectives=objectives, existing=existing),
+        prompts.render("generate", rag_context=context, count=str(count), difficulty_mix=difficulty_mix, objectives=objectives, existing=existing)
+        + appendix(instructions),
         RawQuestionBatch,
         temperature=0.6,
     )

@@ -74,7 +74,7 @@ schemas/   Pydantic request/response DTOs
 ## Job execution
 Postgres is the queue. The API inserts rows; workers claim jobs with `SELECT … FOR UPDATE SKIP LOCKED`. Progress and `cancel_requested` are polled between batches. The UI subscribes to `/jobs/stream/{id}` (SSE). Cancellation, re-ingestion concurrency and project permissions need further regression coverage before authoring integration.
 
-The API runs migrations and bootstraps its admin account in one process before readiness passes. Compose waits for database health before the API and for API health before the worker/web. Both Python services use targets in `apps/api/Dockerfile` and share dependencies. The default CPU stack excludes optional TTS (`media` profile).
+The API runs migrations and bootstraps its admin account in one process before readiness passes. Compose waits for database health before the API and for API health before the worker/web. Both Python services use targets in `apps/api/Dockerfile` and share dependencies. The worker image alone adds headless LibreOffice and its fonts (about 550 MB), which renders Word and PowerPoint sources to PDF at ingestion so the source viewer can show them with their original layout. The default CPU stack excludes optional TTS (`media` profile).
 
 Planned LangGraph integration lives inside the worker. A paused review must persist its checkpoint and release the worker; an authorized approval resumes that revision. Existing job rows do not yet implement these semantics. LangChain tools can wrap retrieval and generation helpers after local tool-calling compatibility is tested.
 

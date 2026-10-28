@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.core.jobs import service as jobs
 from app.core.llm.embeddings import embed_texts
+from app.core.rag import rendition
 from app.core.rag.chunker import chunk_elements
 from app.core.rag.parser import parse_document
 from app.models.chunk import Chunk
@@ -41,6 +42,14 @@ def ingest_source(db: Session, source_id: str, job_id: str | None = None) -> dic
         src.page_count = structure.get("pages")
         src.status = SourceStatus.PARSED.value
         db.commit()
+
+        if Path(src.storage_path).suffix.lower() in rendition.RENDERED:
+            if job_id:
+                jobs.progress(db, job_id, message=f"Rendering {src.filename} for viewing")
+            try:
+                rendition.render_pdf(Path(path), settings.data_dir / rendition.rendition_path(src.storage_path))
+            except Exception as exc:  # the viewer falls back to the original file
+                log.warning("no viewable rendition for %s: %s", src.filename, exc)
 
         drafts = chunk_elements(elements)
         if not drafts:

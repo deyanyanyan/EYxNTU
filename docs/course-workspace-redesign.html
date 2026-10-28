@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Course Workspace Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&family=JetBrains+Mono:wght@400..500&display=swap">
+<style>
+/* Layout: one reading column; each screen mock breaks out wider in an app-window frame, scrolling sideways on phones. */
+:root {
+  --bg: hsl(220 20% 97%);
+  --fg: hsl(224 25% 12%);
+  --surface: hsl(0 0% 100%);
+  --muted: hsl(220 16% 94%);
+  --muted-fg: hsl(222 12% 44%);
+  --line: hsl(220 14% 88%);
+  --accent: hsl(38 92% 50%);
+  --accent-fg: hsl(30 40% 10%);
+  --accent-soft: hsl(38 92% 94%);
+  --ok: hsl(152 60% 38%);
+  --warn: hsl(28 90% 46%);
+  --bad: hsl(0 72% 51%);
+  --shadow: 0 1px 2px hsl(224 25% 12% / 0.06), 0 12px 32px -12px hsl(224 25% 12% / 0.18);
+  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-xs: 0.72rem; --text-sm: 0.84rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.6rem; --text-2xl: 2.2rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: hsl(224 20% 8%); --fg: hsl(220 20% 92%); --surface: hsl(224 18% 11%); --muted: hsl(224 16% 15%);
+    --muted-fg: hsl(220 10% 62%); --line: hsl(222 14% 21%); --accent: hsl(38 92% 55%); --accent-fg: hsl(30 40% 10%);
+    --accent-soft: hsl(38 40% 16%); --ok: hsl(152 55% 48%); --warn: hsl(28 90% 60%); --bad: hsl(0 70% 62%);
+    --shadow: 0 1px 2px hsl(0 0% 0% / 0.3), 0 12px 32px -12px hsl(0 0% 0% / 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: hsl(224 20% 8%); --fg: hsl(220 20% 92%); --surface: hsl(224 18% 11%); --muted: hsl(224 16% 15%);
+  --muted-fg: hsl(220 10% 62%); --line: hsl(222 14% 21%); --accent: hsl(38 92% 55%); --accent-fg: hsl(30 40% 10%);
+  --accent-soft: hsl(38 40% 16%); --ok: hsl(152 55% 48%); --warn: hsl(28 90% 60%); --bad: hsl(0 70% 62%);
+  --shadow: 0 1px 2px hsl(0 0% 0% / 0.3), 0 12px 32px -12px hsl(0 0% 0% / 0.6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font: 400 var(--text-md)/1.6 var(--font-sans);
+  -webkit-font-smoothing: antialiased; font-feature-settings: "ss01", "cv11";
+}
+.page { max-width: 1080px; margin: 0 auto; padding-block: 56px 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+.prose { max-width: 68ch; display: grid; gap: 14px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: var(--text-2xl); line-height: 1.12; font-weight: 800; }
+h2 { font-size: var(--text-xl); line-height: 1.2; font-weight: 750; }
+h3 { font-size: var(--text-md); font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font: 500 var(--text-xs)/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-fg); }
+.lede { font-size: 1.12rem; color: var(--fg); }
+.dim { color: var(--muted-fg); }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+section { display: grid; gap: 22px; min-width: 0; }
+
+/* ---- the problems ---- */
+.problems { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.problem { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.problem p { grid-column: 2; font-size: var(--text-sm); color: var(--muted-fg); }
+.problem h3 { grid-column: 2; font-size: var(--text-sm); }
+.num { grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 600 var(--text-xs)/1 var(--font-mono); background: var(--fg); color: var(--bg); }
+.num.found { background: transparent; color: var(--muted-fg); border: 1px dashed var(--muted-fg); }
+
+/* ---- principles ---- */
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0; border-top: 2px solid var(--fg); }
+.rule { padding: 16px 18px 6px 0; display: grid; gap: 6px; align-content: start; }
+.rule p { font-size: var(--text-sm); color: var(--muted-fg); }
+
+/* ---- mock frames ---- */
+figure { margin: 0; display: grid; gap: 12px; min-width: 0; }
+figcaption { max-width: 68ch; font-size: var(--text-sm); color: var(--muted-fg); }
+figcaption b { color: var(--fg); font-weight: 650; }
+.scroll { overflow-x: auto; padding: 4px 4px 18px; margin: -4px; }
+.win { min-width: 780px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; font-size: var(--text-sm); line-height: 1.45; }
+.win-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px; height: 40px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.win-top .title { font-weight: 650; }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
+.stages { display: flex; gap: 2px; padding: 0 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.stage { display: inline-flex; align-items: center; gap: 7px; padding: 10px 12px 9px; border-bottom: 2px solid transparent; color: var(--muted-fg); font-weight: 600; }
+.stage.on { color: var(--fg); border-color: var(--accent); }
+.stage .n { font: 500 var(--text-xs)/1 var(--font-mono); color: var(--muted-fg); }
+.body { padding: 18px 20px 22px; display: grid; gap: 14px; }
+.split { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 420px; }
+.split > .list { border-right: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; }
+.split > .pane { padding: 18px 20px; display: grid; gap: 12px; align-content: start; }
+
+/* small UI parts */
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 6px; font: 600 var(--text-xs)/1 var(--font-sans); border: 1px solid var(--line); background: var(--surface); color: var(--fg); white-space: nowrap; }
+.btn.accent { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.sm { height: 24px; padding: 0 9px; }
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font: 500 0.66rem/1.3 var(--font-mono); border: 1px solid var(--line); background: var(--muted); color: var(--muted-fg); white-space: nowrap; font-style: normal; }
+.pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.pill.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, transparent); background: color-mix(in srgb, var(--bad) 10%, transparent); }
+.pill.accent { color: var(--fg); border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: var(--accent-soft); }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }
+.chip.on { border-color: var(--accent); background: var(--accent-soft); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.hdr { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hdr .left { display: grid; gap: 2px; min-width: 0; }
+.actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.kicker { font: 500 0.68rem/1.2 var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-fg); }
+.big { font-size: 1.05rem; font-weight: 750; }
+.brief { display: flex; gap: 18px; flex-wrap: wrap; padding: 10px 14px; font-size: var(--text-xs); color: var(--muted-fg); }
+.brief b { color: var(--fg); font-weight: 650; }
+
+/* outline */
+.module { overflow: hidden; }
+.module-h { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--muted); }
+.lesson { display: grid; grid-template-columns: 18px 22px minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+.lesson:last-child { border-bottom: 0; }
+.grip { color: var(--line); font: 700 0.8rem/1 var(--font-mono); letter-spacing: -2px; }
+.lesson .i { font: 500 var(--text-xs)/1 var(--font-mono); color: var(--muted-fg); }
+.lesson .t { font-weight: 650; display: grid; gap: 3px; min-width: 0; }
+.lesson .t small { font-weight: 500; color: var(--muted-fg); font-size: var(--text-xs); }
+.lesson.hover { background: var(--accent-soft); }
+.rowtools { display: flex; gap: 4px; }
+.add { padding: 9px 14px; color: var(--muted-fg); font-weight: 600; font-size: var(--text-xs); }
+.cov { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px 12px; padding: 12px 14px; font-size: var(--text-xs); align-items: center; }
+.cov .o { font-family: var(--font-mono); color: var(--muted-fg); }
+
+/* lessons */
+.li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 4px 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.li.on { background: var(--accent-soft); }
+.box { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid var(--muted-fg); margin-top: 2px; display: grid; place-items: center; font: 700 10px/1 var(--font-sans); color: var(--accent-fg); }
+.box.x { background: var(--accent); border-color: var(--accent); }
+.li .t { font-weight: 650; }
+.li .meta { grid-column: 2; display: flex; gap: 6px; align-items: center; }
+.bar { margin-top: auto; padding: 10px 12px; border-top: 1px solid var(--line); background: var(--fg); color: var(--bg); display: grid; gap: 8px; }
+.bar .btn { background: transparent; border-color: color-mix(in srgb, var(--bg) 35%, transparent); color: var(--bg); }
+.bar .btn.accent { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.slide { padding: 12px 14px; display: grid; gap: 6px; position: relative; }
+.slide.flag { border-color: color-mix(in srgb, var(--bad) 55%, transparent); }
+.slide ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
+.slide .st { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
+.wave { text-decoration: underline wavy var(--bad) 1px; text-underline-offset: 4px; }
+.wave.soft { text-decoration-color: var(--warn); }
+.finding { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--line); font-size: var(--text-xs); }
+.finding .why { color: var(--muted-fg); }
+.hovertools { position: absolute; top: 8px; right: 10px; display: flex; gap: 4px; }
+.q { padding: 12px 14px; display: grid; gap: 6px; }
+
+/* composer */
+.stagewrap { position: relative; padding: 18px 20px 26px; display: grid; gap: 12px; }
+.ghostcontent { opacity: 0.45; display: grid; gap: 10px; }
+.composer { position: absolute; top: 58px; right: 20px; width: 430px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 16px; display: grid; gap: 12px; }
+.scope { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; background: var(--muted); font-weight: 650; font-size: var(--text-xs); }
+.field { min-height: 70px; border: 1px solid var(--accent); border-radius: 6px; padding: 9px 10px; font-size: var(--text-sm); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.field .ph { color: var(--muted-fg); font-size: var(--text-xs); display: block; margin-bottom: 3px; }
+.impact { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: var(--text-xs); padding: 9px 10px; border-radius: 6px; background: var(--muted); }
+.impact b { font-weight: 650; }
+.menu { display: grid; padding: 4px; width: 210px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); font-size: var(--text-xs); }
+.menu span { padding: 6px 8px; border-radius: 5px; display: flex; justify-content: space-between; gap: 8px; }
+.menu span.on { background: var(--accent-soft); font-weight: 650; }
+
+/* review changes */
+.change { overflow: hidden; }
+.change-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.diff { display: grid; font: 400 0.8rem/1.5 var(--font-mono); }
+.diff div { padding: 4px 14px 4px 30px; position: relative; }
+.diff div::before { position: absolute; left: 13px; }
+.del { background: color-mix(in srgb, var(--bad) 9%, transparent); }
+.del::before { content: "−"; color: var(--bad); }
+.del s { text-decoration-color: var(--bad); }
+.ins { background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.ins::before { content: "+"; color: var(--ok); }
+.change-f { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 14px; border-top: 1px solid var(--line); font-size: var(--text-xs); }
+
+/* today schematic */
+.today { padding: 16px 18px 20px; display: grid; gap: 10px; }
+.stepcard { padding: 12px 14px; display: grid; gap: 8px; }
+.marker { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--fg); color: var(--bg); font: 700 0.62rem/1 var(--font-mono); vertical-align: middle; }
+.faint { color: var(--muted-fg); font-size: var(--text-xs); }
+
+/* mapping table */
+.tablewrap { overflow-x: auto; }
+table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: var(--text-sm); }
+th { text-align: left; font: 500 var(--text-xs)/1.2 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted-fg); padding: 0 14px 10px 0; border-bottom: 2px solid var(--fg); }
+td { vertical-align: top; padding: 12px 14px 12px 0; border-bottom: 1px solid var(--line); }
+td:first-child { white-space: nowrap; font-weight: 650; }
+td .num { display: inline-grid; margin-right: 8px; width: 20px; height: 20px; vertical-align: -4px; }
+
+/* phases */
+.phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.phase { padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+.phase ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: var(--text-sm); }
+.phase .under { font-size: var(--text-xs); color: var(--muted-fg); border-top: 1px dashed var(--line); padding-top: 9px; }
+.size { font: 500 var(--text-xs)/1 var(--font-mono); color: var(--muted-fg); }
+
+/* decisions */
+.decisions { display: grid; gap: 10px; counter-reset: d; }
+.decision { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 18px; padding: 14px 16px; align-items: start; }
+.decision p { font-size: var(--text-sm); color: var(--muted-fg); grid-column: 1; }
+.decision .rec { grid-row: 1 / span 2; grid-column: 2; }
+
+@media (max-width: 520px) {
+  .page { padding-block: 32px 64px; gap: 44px; }
+  h1 { font-size: 1.8rem; }
+  .decision { grid-template-columns: 1fr; }
+  .decision .rec { grid-row: auto; grid-column: 1; justify-self: start; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="prose">
+    <span class="eyebrow">Proposal for review · LMS Studio · 28 Oct 2026</span>
+    <h1>Course workspace redesign</h1>
+    <p class="lede">Today the Course tab asks people to understand the pipeline before they can change their course. This proposal organises it around the course itself: the outline you approve, the lessons you review, and one way to regenerate any part of either, with your own instructions.</p>
+    <p class="dim">The mockups use the Northwind demo course and its real reviewer findings.</p>
+  </header>
+
+  <section aria-labelledby="today">
+    <div class="prose">
+      <h2 id="today">What gets in the way today</h2>
+      <p class="dim">Numbers 1 to 4 are the points you raised. 5 and 6 came up while building the last features.</p>
+    </div>
+    <div class="problems">
+      <div class="problem"><span class="num">1</span><h3>Two regenerate buttons</h3><p>“New version” under Plan and “Regenerate” under Generate lessons look alike. One rebuilds the course structure, the other rewrites lesson content.</p></div>
+      <div class="problem"><span class="num">2</span><h3>All or nothing</h3><p>Regeneration covers every lesson at once, and there is no way to say what should change.</p></div>
+      <div class="problem"><span class="num">3</span><h3>Flags without a fix</h3><p>The reviewer marks contradictions and weak quiz options, but nothing turns a flag into a correction.</p></div>
+      <div class="problem"><span class="num">4</span><h3>The outline is hidden</h3><p>Modules and lessons sit inside “Plan the course”, below the learning objectives, so they do not read as the course.</p></div>
+      <div class="problem"><span class="num found">5</span><h3>The pipeline appears twice</h3><p>The step cards repeat the Ingest, Plan, Generate, Export stepper in the top bar.</p></div>
+      <div class="problem"><span class="num found">6</span><h3>Lessons hide the outline</h3><p>Opening a lesson replaces the tab, so moving between lessons means going back to the list each time.</p></div>
+    </div>
+    <figure>
+      <div class="scroll">
+        <div class="win">
+          <div class="win-top"><span class="dots"><i></i><i></i><i></i></span><span class="title">Course tab today</span><span class="pill">current</span></div>
+          <div class="today">
+            <div class="card stepcard">
+              <div class="hdr"><b>1 Plan the course</b><span class="actions"><span class="marker">1</span><span class="btn">↻ New version</span></span></div>
+              <div class="faint">Northwind Information Security Essentials · v1 approved</div>
+              <div class="faint">Learning objectives: o1 Create, store and protect passwords… · o2 Report a suspected incident… · o3 Recognise phishing…</div>
+              <div class="hdr"><span><span class="marker">4</span> <span class="faint">1. Protecting accounts and reporting incidents</span></span><span class="faint">3 lessons, listed under the objectives</span></div>
+              <div class="faint" style="padding-left:26px">Passwords and multi-factor authentication <span class="pill warn">3 flagged</span> <span class="marker">3</span> · Reporting security incidents <span class="pill warn">3 flagged</span> · Recognising phishing</div>
+            </div>
+            <div class="card stepcard"><div class="hdr"><b>2 Generate lessons</b><span class="actions"><span class="marker">1</span><span class="marker">2</span><span class="btn">↻ Regenerate</span></span></div></div>
+            <div class="card stepcard"><div class="hdr"><b>3 Export</b><span class="btn accent">Export course</span></div></div>
+          </div>
+        </div>
+      </div>
+      <figcaption>A schematic of the current tab with the problems marked.</figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="idea">
+    <div class="prose">
+      <h2 id="idea">The idea</h2>
+      <p>Most of the confusion comes from one missing distinction. Changing <b>what the course covers</b> and changing <b>what a lesson says</b> are different jobs, and today they look the same. The redesign gives each job its own place and lets every change start from the thing you are looking at.</p>
+    </div>
+    <div class="rules">
+      <div class="rule"><h3>Structure and content live apart</h3><p>The Outline tab decides modules, lessons and objectives. The Lessons tab decides slides and quizzes.</p></div>
+      <div class="rule"><h3>Change things where you see them</h3><p>A course, module, lesson, slide or question has its own regenerate action, so the scope is never in doubt.</p></div>
+      <div class="rule"><h3>Every change can be undone</h3><p>Approved content is never overwritten. Fixes arrive as proposed changes, and the previous version stays one click away.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="outline">
+    <div class="prose">
+      <h2 id="outline">Four stage tabs, starting with the outline</h2>
+      <p>The Course tab becomes four tabs: <b>Sources</b>, <b>Outline</b>, <b>Lessons</b> and <b>Publish</b>. Each tab label carries its stage’s status, which replaces both the step cards and the top-bar stepper. Each tab has one primary action that follows the course’s state: approve the outline, generate lessons, fix flags, export.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+        <div class="win">
+          <div class="win-top"><span class="dots"><i></i><i></i><i></i></span><span class="title">Northwind security essentials</span><span class="dim" style="font-size:var(--text-xs)">Platform Admin · admin</span></div>
+          <nav class="stages"><span class="stage">Sources <span class="n">1</span></span><span class="stage on">Outline <i class="pill ok">v1 approved</i></span><span class="stage">Lessons <i class="pill warn">6 flags</i></span><span class="stage">Publish <i class="pill">exported 28 Oct</i></span></nav>
+          <div class="body">
+            <div class="hdr">
+              <div class="left"><span class="kicker">Course outline</span><span class="big">Northwind Information Security Essentials</span></div>
+              <div class="actions"><span class="btn">v1 · approved ▾</span><span class="btn">↻ Rebuild outline…</span><span class="btn accent">Go to lessons →</span></div>
+            </div>
+            <div class="card brief"><span><b>For</b> new Northwind employees and contractors with no security background</span><span><b>Length</b> 30 min</span><span><b>Goals</b> report incidents, protect passwords and MFA, recognise phishing</span><span class="dim">✎ Edit brief</span></div>
+            <div class="card module">
+              <div class="module-h"><b>Module 1 · Protecting accounts and reporting incidents</b><span class="dim mono">3 lessons · 30 min</span></div>
+              <div class="lesson"><span class="grip">⋮⋮</span><span class="i">1.1</span><span class="t">Passwords and multi-factor authentication<small>Create, store and protect passwords and use MFA · apply</small></span><span class="pill">10 min</span><span class="pill">baseline_course.md</span><span class="pill warn">3 flagged</span></div>
+              <div class="lesson hover"><span class="grip">⋮⋮</span><span class="i">1.2</span><span class="t">Reporting security incidents<small>Report a suspected incident through the right channel in time · apply</small></span><span class="rowtools"><span class="btn sm">✎ Rename</span><span class="btn sm">↻ Regenerate lesson…</span><span class="btn sm ghost">Remove</span></span><span class="pill">10 min</span><span class="pill warn">3 flagged</span></div>
+              <div class="lesson"><span class="grip">⋮⋮</span><span class="i">1.3</span><span class="t">Recognising phishing<small>Recognise the warning signs and verify requests · understand</small></span><span class="pill">10 min</span><span class="pill">baseline_course.md</span><span class="pill ok">no flags</span></div>
+              <div class="add">+ Add lesson</div>
+            </div>
+            <div class="card">
+              <div class="module-h"><b>Objectives and where they are taught</b><span class="dim mono">3 objectives · all covered</span></div>
+              <div class="cov">
+                <span class="o">o1</span><span>Create, store and protect Northwind passwords and use MFA as the handbook requires</span><span class="pill">1.1 · apply</span>
+                <span class="o">o2</span><span>Report a suspected security incident through the right channel within the required time</span><span class="pill">1.2 · apply</span>
+                <span class="o">o3</span><span>Recognise the warning signs of phishing and verify suspicious requests</span><span class="pill">1.3 · understand</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><b>Outline tab.</b> Modules and lessons come first, each with its objective, length, sources and review status. Rows can be renamed, reordered by dragging, added and removed directly; small structural changes need no regeneration. <b>Rebuild outline</b> is the one action that changes the structure wholesale, and it creates a new version you can compare with the old one. Hovering a lesson shows its own actions.</figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="lessons">
+    <div class="prose">
+      <h2 id="lessons">Lessons: a list and a reading pane</h2>
+      <p>The Lessons tab keeps the lesson list beside the open lesson. Each lesson shows its state at a glance. Ticking lessons brings up an action bar for that selection, so “regenerate these two” or “fix everything flagged here” takes one step.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+        <div class="win">
+          <div class="win-top"><span class="dots"><i></i><i></i><i></i></span><span class="title">Northwind security essentials</span><span class="dim" style="font-size:var(--text-xs)">Platform Admin · admin</span></div>
+          <nav class="stages"><span class="stage">Sources <span class="n">1</span></span><span class="stage">Outline <i class="pill ok">v1 approved</i></span><span class="stage on">Lessons <i class="pill warn">6 flags</i></span><span class="stage">Publish <i class="pill">exported 28 Oct</i></span></nav>
+          <div class="split">
+            <div class="list">
+              <div class="li on"><span class="box x">✓</span><span class="t">Passwords and multi-factor authentication</span><span class="meta"><span class="pill warn">3 flagged</span><span class="pill">3 slides · 2 q</span></span></div>
+              <div class="li"><span class="box x">✓</span><span class="t">Reporting security incidents</span><span class="meta"><span class="pill warn">3 flagged</span><span class="pill">3 slides · 2 q</span></span></div>
+              <div class="li"><span class="box"></span><span class="t">Recognising phishing</span><span class="meta"><span class="pill ok">no flags</span><span class="pill">3 slides · 2 q</span></span></div>
+              <div class="bar"><span style="font-weight:650">2 lessons selected</span><span class="actions"><span class="btn accent">Fix 6 flagged</span><span class="btn">↻ Regenerate…</span><span class="btn">Approve</span></span></div>
+            </div>
+            <div class="pane">
+              <div class="hdr">
+                <div class="left"><span class="kicker">Module 1 · Lesson 1.1</span><span class="big">Passwords and multi-factor authentication</span></div>
+                <div class="actions"><span class="btn">↻ Regenerate lesson…</span><span class="btn accent">Fix 3 flagged</span></div>
+              </div>
+              <div class="card slide flag">
+                <div class="st">Creating strong passwords <span class="hovertools"><span class="btn sm">↻ Regenerate slide</span><span class="btn sm">✎ Edit</span></span></div>
+                <ul><li>Northwind passwords must be at least <span class="wave">12 characters</span> long</li><li>Passphrases of four or more unrelated words are recommended</li><li>Never reuse a Northwind password on any other site</li></ul>
+                <div class="finding"><span class="pill bad">Contradicts the source</span><span class="why">The handbook says at least 14 characters.</span><span class="btn sm accent" style="margin-left:auto">Fix</span></div>
+              </div>
+              <div class="card slide flag">
+                <div class="st">Storing passwords</div>
+                <ul><li>Store passwords only in the company password manager</li><li><span class="wave soft">Change your password every 30 days, as Northwind policy requires</span></li></ul>
+                <div class="finding"><span class="pill warn">Not in the source</span><span class="why">The handbook has no rotation rule.</span><span class="btn sm accent" style="margin-left:auto">Fix</span></div>
+              </div>
+              <div class="card q">
+                <div class="st" style="display:flex;justify-content:space-between;font-weight:700">2. What is the minimum length of a Northwind password?<span class="pill warn">Distractors 1/5</span></div>
+                <div class="faint">✓ 14 characters · 1 character · There is no minimum · A password made of emoji</div>
+                <div class="finding"><span class="why">Wrong options are easy to rule out.</span><span class="btn sm" style="margin-left:auto">Improve options</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><b>Lessons tab.</b> Flags sit on the slide or question they concern, each with its own <b>Fix</b>; the lesson header offers <b>Fix 3 flagged</b> and the selection bar <b>Fix 6 flagged</b>. A fix uses the reviewer’s finding and the source passage as its instruction. Hovering a slide shows <b>Regenerate slide</b> and <b>Edit</b>. Weak quiz options get <b>Improve options</b>, which keeps the question and its answer.</figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="composer">
+    <div class="prose">
+      <h2 id="composer">One composer for every regeneration</h2>
+      <p>Every regenerate action opens the same small panel. It names the scope it was opened from, takes optional instructions, offers a few common intents as one-tap chips, and states what will be replaced and what will be kept before anything runs. Changing the scope is a choice inside the panel, so nobody has to find a different button.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+        <div class="win">
+          <div class="win-top"><span class="dots"><i></i><i></i><i></i></span><span class="title">Northwind security essentials</span><span class="dim" style="font-size:var(--text-xs)">Platform Admin · admin</span></div>
+          <nav class="stages"><span class="stage">Sources <span class="n">1</span></span><span class="stage">Outline <i class="pill ok">v1 approved</i></span><span class="stage on">Lessons <i class="pill warn">6 flags</i></span><span class="stage">Publish <i class="pill">exported 28 Oct</i></span></nav>
+          <div class="stagewrap" style="min-height:430px">
+            <div class="hdr"><div class="left"><span class="kicker">Module 1 · Lesson 1.2</span><span class="big">Reporting security incidents</span></div><div class="actions"><span class="btn" style="border-color:var(--accent)">↻ Regenerate lesson…</span><span class="btn accent">Fix 3 flagged</span></div></div>
+            <div class="ghostcontent"><div class="card slide"><div class="st">What counts as an incident</div><ul><li>An incident is any event that could compromise Northwind or client information</li></ul></div><div class="card slide"><div class="st">How and when to report</div><ul><li>Report every suspected incident to the Security Desk within 24 hours</li></ul></div></div>
+            <div class="composer">
+              <div class="hdr"><b>Regenerate</b><span class="scope">Lesson · Reporting security incidents ▾</span></div>
+              <div class="field"><span class="ph">What should change? Optional.</span>Lead with the 1-hour rule and walk through reporting a phishing email as an example.</div>
+              <div class="actions"><span class="chip">Simpler language</span><span class="chip on">✓ More examples</span><span class="chip">Shorter</span><span class="chip on">✓ Fix 3 flagged issues</span></div>
+              <div class="impact"><b>Replaces</b><span>3 slides and 2 quiz questions in this lesson</span><b>Keeps</b><span>the outline, and any slide you approved</span></div>
+              <div class="actions" style="justify-content:flex-end"><span class="btn ghost">Cancel</span><span class="btn accent">Regenerate</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><b>Composer, opened from a lesson.</b> The scope menu lists, from narrow to wide: <span class="mono">This slide</span>, <span class="mono">This lesson</span>, <span class="mono">Module 1 (3 lessons)</span>, <span class="mono">All lesson content</span>. On the Outline tab the same panel is titled <b>Rebuild outline</b>, and its scope is the course structure. Instructions are kept with the result, so the version history shows why each version exists.</figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="review">
+    <div class="prose">
+      <h2 id="review">Fixes arrive as proposed changes</h2>
+      <p>A fix should never quietly rewrite a lesson. Targeted fixes come back as a short list of proposed changes, each showing exactly what moves, with the reviewer’s fresh verdict beside it. Accepting is one click per change or one click for all.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+        <div class="win">
+          <div class="win-top"><span class="dots"><i></i><i></i><i></i></span><span class="title">Proposed changes · Passwords and multi-factor authentication</span><span class="actions"><span class="pill ok">3 of 3 flags resolved on re-check</span><span class="btn accent sm">Accept all</span></span></div>
+          <div class="body">
+            <div class="card change">
+              <div class="change-h"><b>Slide 1 · Creating strong passwords</b><span class="pill ok">re-check: supported</span></div>
+              <div class="diff"><div class="del"><s>Northwind passwords must be at least 12 characters long</s></div><div class="ins">Northwind passwords must be at least 14 characters long</div></div>
+              <div class="change-f"><span class="dim">Fixes: contradicts the source (“12 characters”)</span><span class="actions"><span class="btn sm">Keep original</span><span class="btn sm accent">Accept</span></span></div>
+            </div>
+            <div class="card change">
+              <div class="change-h"><b>Slide 2 · Storing passwords</b><span class="pill ok">re-check: supported</span></div>
+              <div class="diff"><div class="del"><s>Change your password every 30 days, as Northwind policy requires</s></div></div>
+              <div class="change-f"><span class="dim">Fixes: not in the source. The bullet is removed.</span><span class="actions"><span class="btn sm">Keep original</span><span class="btn sm accent">Accept</span></span></div>
+            </div>
+            <div class="card change">
+              <div class="change-h"><b>Slide 3 · Multi-factor authentication</b><span class="pill ok">re-check: supported</span></div>
+              <div class="diff"><div class="del"><s>SMS codes are a fine permanent alternative if you prefer them</s></div><div class="ins">SMS codes are only a temporary fallback, for up to 7 days while a phone is replaced</div></div>
+              <div class="change-f"><span class="dim">Fixes: contradicts the source</span><span class="actions"><span class="btn sm">Keep original</span><span class="btn sm accent">Accept</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><b>Proposed changes.</b> Struck lines leave and green lines arrive. Whole-lesson regeneration, by contrast, applies straight away, and the previous version is restored from the lesson’s version menu. The re-check runs the trained reviewer again on the changed slides only: as a batch job today, and live once the reviewer is served on EY’s GPUs.</figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="publish">
+    <div class="prose">
+      <h2 id="publish">Publish shows what is left</h2>
+      <p>The last tab gathers export, the in-app preview and the export history, and states what is still open before you send a course to an LMS. Open items are links into the Lessons tab, and none of them blocks an export.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+        <div class="win">
+          <div class="win-top"><span class="dots"><i></i><i></i><i></i></span><span class="title">Northwind security essentials</span><span class="dim" style="font-size:var(--text-xs)">Platform Admin · admin</span></div>
+          <nav class="stages"><span class="stage">Sources <span class="n">1</span></span><span class="stage">Outline <i class="pill ok">v1 approved</i></span><span class="stage">Lessons <i class="pill ok">0 flags</i></span><span class="stage on">Publish <i class="pill accent">ready</i></span></nav>
+          <div class="body">
+            <div class="hdr"><div class="left"><span class="kicker">Ready to publish</span><span class="big">3 lessons · 6 quiz questions</span></div><div class="actions"><span class="btn">▶ Preview as a learner</span><span class="btn accent">Export PowerPoint and SCORM</span></div></div>
+            <div class="card brief"><span><b>✓</b> 3 of 3 lessons generated</span><span><b>✓</b> 0 open flags</span><span><b style="color:var(--warn)">!</b> 1 lesson not approved: <u>Recognising phishing</u></span></div>
+            <div class="card"><div class="module-h"><b>Exports</b><span class="dim mono">2</span></div><div class="cov"><span class="o">v2</span><span>28 Oct 2026, 16:05 · plan v1 · after fixes</span><span class="actions"><span class="btn sm">Preview</span><span class="btn sm">SCORM</span><span class="btn sm">PPTX</span></span><span class="o">v1</span><span>28 Oct 2026, 11:21 · plan v1 · includes unreviewed content</span><span class="actions"><span class="btn sm">Preview</span><span class="btn sm">SCORM</span><span class="btn sm">PPTX</span></span></div></div>
+          </div>
+        </div>
+      </div>
+      <figcaption><b>Publish tab</b>, shown after the fixes above were accepted.</figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="map">
+    <div class="prose"><h2 id="map">How each point is answered</h2></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Point</th><th>Design response</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td><span class="num">1</span>Two regenerate buttons</td><td>One action per place, and the place is the scope. <b>Rebuild outline</b> lives on the outline; <b>Regenerate</b> lives on lessons, slides and questions. The composer always names its scope.</td><td>Outline, Lessons</td></tr>
+          <tr><td><span class="num">2</span>Custom prompt, partial changes</td><td>The composer takes instructions and one-tap intents. The scope comes from what you selected: a slide, a question, one or several lessons, a module, or all content.</td><td>Composer</td></tr>
+          <tr><td><span class="num">3</span>Fixing flagged issues</td><td><b>Fix</b> on every flag, <b>Fix all</b> on the lesson and the selection. Fixes use the finding and its source passage as the instruction, return as proposed changes, and are re-checked by the reviewer.</td><td>Lessons, Proposed changes</td></tr>
+          <tr><td><span class="num">4</span>Outline hidden</td><td>Its own tab, with modules and lessons first. Objectives show on each lesson and in a coverage list below.</td><td>Outline</td></tr>
+          <tr><td><span class="num found">5</span>Pipeline shown twice</td><td>Stage tabs carry the status; the step cards and the top-bar stepper go.</td><td>All tabs</td></tr>
+          <tr><td><span class="num found">6</span>Lessons hide the outline</td><td>A lesson list beside the reading pane.</td><td>Lessons</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="phases">
+    <div class="prose">
+      <h2 id="phases">Build order</h2>
+      <p>Each phase is usable on its own. Phase 1 is mostly front-end and fixes points 1, 4, 5 and 6 without new generation features.</p>
+    </div>
+    <div class="phases">
+      <div class="card phase">
+        <div class="hdr"><h3>Phase 1 · Reorganise</h3><span class="size">smaller</span></div>
+        <ul><li>Stage tabs with status, replacing the step cards and the stepper</li><li>Outline tab with modules and lessons first</li><li>Lessons tab as list plus reading pane</li><li>One state-driven primary action per tab</li></ul>
+        <p class="under">Underneath: no new endpoints.</p>
+      </div>
+      <div class="card phase">
+        <div class="hdr"><h3>Phase 2 · Targeted regeneration</h3><span class="size">larger</span></div>
+        <ul><li>The composer, with scope, instructions and intents</li><li>Regenerate selected lessons, one slide, or one question</li><li>Proposed changes with Accept and Keep original</li><li>Lesson version history with restore</li></ul>
+        <p class="under">Underneath: lesson generation takes lesson ids and instructions; slide and question regeneration endpoints; previous asset versions kept instead of deleted (one migration).</p>
+      </div>
+      <div class="card phase">
+        <div class="hdr"><h3>Phase 3 · Fix and edit</h3><span class="size">larger</span></div>
+        <ul><li>Fix and Fix all from reviewer findings, with re-check</li><li>Edit slide and question text in place</li><li>Rename, reorder, add and remove lessons; move objectives</li><li>Approve lessons; compare outline versions</li></ul>
+        <p class="under">Underneath: instructions built from findings and source passages; re-review of changed assets only; outline and approval endpoints.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="decide">
+    <div class="prose">
+      <h2 id="decide">Decisions for you</h2>
+      <p class="dim">My recommendation is on the right of each.</p>
+    </div>
+    <div class="decisions">
+      <div class="card decision"><h3>Replace the step cards and top-bar stepper with stage tabs?</h3><p>The tabs carry the same status, so nothing is lost, and the Course tab stops being one long page.</p><span class="pill accent rec">Yes</span></div>
+      <div class="card decision"><h3>When should regenerated content take effect?</h3><p>Targeted fixes wait for Accept. Whole-lesson regeneration applies at once, with the previous version one click away.</p><span class="pill accent rec">As described</span></div>
+      <div class="card decision"><h3>May people edit an approved outline?</h3><p>Editing would create a new outline version automatically, with a compare view, so approval keeps its meaning.</p><span class="pill accent rec">Yes, as a new version</span></div>
+      <div class="card decision"><h3>Which one-tap intents should the composer offer?</h3><p>Proposed: Simpler language, More examples, Shorter, Fix flagged issues. Your instructional designers may know better ones.</p><span class="pill accent rec">Start with these four</span></div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

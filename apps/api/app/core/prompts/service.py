@@ -43,6 +43,9 @@ class PromptSet:
     def render(self, name: str, **vars: str) -> str:
         tpl = self.templates.get(name)
         if tpl is None:
+            # A version saved in the admin UI before this template existed falls back to the file default.
+            tpl = load_file_defaults(self.task).templates.get(name) if self.version_id else None
+        if tpl is None:
             raise KeyError(f"prompt task '{self.task}' has no template '{name}'")
         return substitute(tpl, **vars)
 

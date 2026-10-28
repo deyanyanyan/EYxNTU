@@ -5,17 +5,25 @@ chunks the planner assigned to it plus a retrieval pass on its title and
 objectives, then one deck call and one quiz call (the quiz generator keeps its
 existing validate-and-repair loop). Failures are recorded per lesson rather than
 aborting the course, because the failure rate is itself a baseline number.
+
+A run can cover chosen lessons only and carry the author's instructions and intents
+(brief.py), including the reviewer's findings for a fix. Approved lessons are skipped.
+The new deck and quiz become the current versions; the ones they replace are kept
+(superseded, see revision.py) so the author can restore them.
 """
 from __future__ import annotations
 
 import logging
 import time
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.generation import revision
+from app.core.generation.brief import appendix, compose, lesson_findings
 from app.core.generation.evidence import chunks_by_id, dedupe, evidence_budget, extract_citations, pack, reference_table
 from app.core.generation.quiz.service import RawQuestionBatch, generate_quiz
 from app.core.jobs import service as jobs
@@ -106,19 +114,14 @@ def lesson_evidence(db: Session, project_id: str, lesson: Lesson, objectives: st
     return pack(dedupe(planned, retrieved), budget)
 
 
-def _replace_generated_assets(db: Session, lesson_id: str) -> int:
-    """Remove this lesson's unapproved assets; approved ones are never overwritten.
-
-    Committed immediately: a later rollback after a failed deck or quiz call
-    must not resurrect the old assets alongside the new ones.
-    """
-    version = db.scalar(select(func.max(Asset.version)).where(Asset.lesson_id == lesson_id)) or 0
-    db.execute(delete(Asset).where(Asset.lesson_id == lesson_id, Asset.approval != ApprovalState.APPROVED.value))
-    db.commit()
-    return version + 1
+def _supersede(previous: Asset | None) -> None:
+    """The new version is saved, so the one it replaces leaves the current set (kept for restore)."""
+    if previous is not None:
+        previous.superseded_at = datetime.now(UTC)
 
 
-async def _generate_deck(plan: CoursePlan, lesson: Lesson, project: Project, objectives: str, evidence: list[RetrievedChunk], prompts: PromptSet) -> tuple[dict, list[tuple[str, str]], dict]:
+async def _generate_deck(plan: CoursePlan, lesson: Lesson, project: Project, objectives: str, evidence: list[RetrievedChunk], prompts: PromptSet,
+                         brief: str = "") -> tuple[dict, list[tuple[str, str]], dict]:
     cmap = citation_map(evidence)
     deck = await chat_structured(
         prompts.system_prompt,
@@ -130,7 +133,7 @@ async def _generate_deck(plan: CoursePlan, lesson: Lesson, project: Project, obj
             audience=project.target_audience or "Professional learners new to the topic",
             rag_context=format_context(evidence),
             slide_count=SLIDE_COUNT,
-        ),
+        ) + appendix(brief),
         Deck,
         temperature=0.4,
     )
@@ -138,13 +141,21 @@ async def _generate_deck(plan: CoursePlan, lesson: Lesson, project: Project, obj
     return {"slides": slides, "references": reference_table(evidence), "citation_stats": stats}, links, stats
 
 
-async def generate_lesson(db: Session, project: Project, plan: CoursePlan, lesson: Lesson, deck_prompts: PromptSet, quiz_prompts: PromptSet) -> dict:
+async def generate_lesson(db: Session, project: Project, plan: CoursePlan, lesson: Lesson, deck_prompts: PromptSet, quiz_prompts: PromptSet,
+                          *, instructions: str | None = None, intents: list[str] | None = None) -> dict:
     started = time.perf_counter()
     objectives = objectives_for(plan, lesson)
+    old_deck, old_quiz = revision.current(db, lesson.id, AssetKind.SLIDES.value), revision.current(db, lesson.id, AssetKind.QUIZ.value)
+    if any(a and a.approval == ApprovalState.APPROVED.value for a in (old_deck, old_quiz)):
+        return {"lesson_id": lesson.id, "title": lesson.title, "errors": [], "skipped": "approved"}
+    intents = intents or []
+    brief = compose(instructions, intents, lesson_findings(old_deck, old_quiz) if "fix" in intents else None)
+    note = {"note": "Regenerated lesson" if old_deck or old_quiz else "Generated lesson", "at": revision.now_iso(),
+            "instructions": brief or None, "intents": intents}
     deck_frame = deck_prompts.render(
         "deck", lesson_title=lesson.title, estimated_minutes="10", objectives=objectives,
         audience=project.target_audience or "", rag_context="", slide_count=SLIDE_COUNT,
-    )
+    ) + appendix(brief)
     budget = evidence_budget(deck_prompts.system_prompt, deck_frame, schema=Deck)
     evidence = lesson_evidence(db, project.id, lesson, objectives, budget)
     outcome: dict = {"lesson_id": lesson.id, "title": lesson.title, "evidence_chunks": len(evidence), "errors": []}
@@ -152,14 +163,15 @@ async def generate_lesson(db: Session, project: Project, plan: CoursePlan, lesso
         outcome["errors"].append("no evidence retrieved for this lesson")
         return outcome
 
-    version = _replace_generated_assets(db, lesson.id)
+    version = revision.next_version(db, lesson.id)
     common = {"project_id": project.id, "lesson_id": lesson.id, "version": version, "generated_with_model": settings.llm_model}
 
     try:
-        content, links, stats = await _generate_deck(plan, lesson, project, objectives, evidence, deck_prompts)
-        asset = Asset(kind=AssetKind.SLIDES.value, content=content, prompt_version_id=deck_prompts.version_id, **common)
+        content, links, stats = await _generate_deck(plan, lesson, project, objectives, evidence, deck_prompts, brief)
+        asset = Asset(kind=AssetKind.SLIDES.value, content={**content, "revision": note}, prompt_version_id=deck_prompts.version_id, **common)
         asset.citations = [Citation(block_id=slide_id, chunk_id=chunk_id) for slide_id, chunk_id in links]
         db.add(asset)
+        _supersede(old_deck)
         db.commit()
         outcome["slides"] = stats
     except Exception as exc:
@@ -172,11 +184,11 @@ async def generate_lesson(db: Session, project: Project, plan: CoursePlan, lesso
         quiz_budget = evidence_budget(quiz_prompts.system_prompt, quiz_prompts.render("generate", rag_context=""), schema=RawQuestionBatch)
         quiz_evidence = pack(evidence, quiz_budget)
         accepted, rejected = await generate_quiz(
-            quiz_evidence, prompts=quiz_prompts, count=QUIZ_QUESTIONS, difficulty_mix=QUIZ_DIFFICULTY, objectives=objectives,
+            quiz_evidence, prompts=quiz_prompts, count=QUIZ_QUESTIONS, difficulty_mix=QUIZ_DIFFICULTY, objectives=objectives, instructions=brief,
         )
         asset = Asset(
             kind=AssetKind.QUIZ.value,
-            content={"questions": accepted, "rejected": rejected, "references": reference_table(quiz_evidence)},
+            content={"questions": accepted, "rejected": rejected, "references": reference_table(quiz_evidence), "revision": note},
             prompt_version_id=quiz_prompts.version_id,
             **common,
         )
@@ -186,6 +198,7 @@ async def generate_lesson(db: Session, project: Project, plan: CoursePlan, lesso
             if q.get("chunk_id")
         ]
         db.add(asset)
+        _supersede(old_quiz)
         db.commit()
         outcome["quiz"] = {"accepted": len(accepted), "rejected": len(rejected)}
     except Exception as exc:
@@ -197,7 +210,8 @@ async def generate_lesson(db: Session, project: Project, plan: CoursePlan, lesso
     return outcome
 
 
-async def generate_lessons(db: Session, project_id: str, *, job_id: str | None = None) -> dict:
+async def generate_lessons(db: Session, project_id: str, *, job_id: str | None = None, lesson_ids: list[str] | None = None,
+                           instructions: str | None = None, intents: list[str] | None = None) -> dict:
     started = time.perf_counter()
     calls_before = llm_call_count()
     project = db.get(Project, project_id)
@@ -207,6 +221,10 @@ async def generate_lessons(db: Session, project_id: str, *, job_id: str | None =
     if not plan:
         raise ValueError("The latest course plan is not approved. Approve it before generating lessons.")
     lessons = ordered_lessons(db, plan.id)
+    if lesson_ids:
+        lessons = [lesson for lesson in lessons if lesson.id in set(lesson_ids)]
+        if not lessons:
+            raise ValueError("None of the chosen lessons belong to the current approved plan.")
     deck_prompts = get_active(db, "slides")
     quiz_prompts = get_active(db, "quiz")
 
@@ -218,10 +236,11 @@ async def generate_lessons(db: Session, project_id: str, *, job_id: str | None =
                 cancelled = True
                 break
             jobs.progress(db, job_id, current=i, total=len(lessons), message=f"Lesson {i + 1} of {len(lessons)}: {lesson.title}")
-        outcomes.append(await generate_lesson(db, project, plan, lesson, deck_prompts, quiz_prompts))
+        outcomes.append(await generate_lesson(db, project, plan, lesson, deck_prompts, quiz_prompts, instructions=instructions, intents=intents))
 
     produced = sum(1 for o in outcomes for k in ("slides", "quiz") if k in o)
-    if not cancelled and lessons and produced == 0:
+    skipped = sum(1 for o in outcomes if o.get("skipped"))
+    if not cancelled and lessons and produced == 0 and skipped < len(outcomes):
         first = next((e for o in outcomes for e in o["errors"]), "unknown error")
         raise RuntimeError(f"No lesson assets could be generated. First error: {first}")
 
@@ -230,6 +249,7 @@ async def generate_lessons(db: Session, project_id: str, *, job_id: str | None =
         "plan_id": plan.id,
         "lessons": len(lessons),
         "lessons_attempted": len(outcomes),
+        "lessons_skipped_approved": skipped,
         "cancelled": cancelled,
         "decks": len(slide_stats),
         "quizzes": sum(1 for o in outcomes if "quiz" in o),
