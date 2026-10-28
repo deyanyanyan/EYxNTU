@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N evaltrain-review
+#PBS -l select=1:ncpus=12:ngpus=1:mem=192gb
+#PBS -l walltime=01:00:00
+# Batch review of an exported LMS course with a run's adapter. The cluster may process
+# open data only: send public or synthetic course material, never private uploads.
+#   MEM=192gb bash pbs/submit.sh review configs/main_27b.yaml REQUESTS.jsonl RESULTS.jsonl
+
+set -euo pipefail
+cd "$PBS_O_WORKDIR"
+# shellcheck disable=SC1091
+source pbs/env.sh
+: "${CONFIG:?submit through pbs/submit.sh}"
+: "${REQUESTS:?}" "${OUT:?}"
+mkdir -p "$EVALTRAIN_ROOT/logs"
+exec > >(tee -a "$EVALTRAIN_ROOT/logs/${PBS_JOBID%%.*}-review.log") 2>&1
+
+echo "job=${PBS_JOBID} host=$(hostname) start=$(date -Is) config=${CONFIG} requests=${REQUESTS}"
+nvidia-smi --query-gpu=index,name,memory.total,driver_version --format=csv
+
+python -m evaltrain.review_batch --config "$CONFIG" --requests "$REQUESTS" --out "$OUT"

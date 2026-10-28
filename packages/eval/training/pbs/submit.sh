@@ -9,6 +9,7 @@
 #   bash pbs/submit.sh eval  configs/pilot_9b.yaml base+base-thinking   # several arms in one job (1 h)
 #   SPLIT=test FINAL=1 bash pbs/submit.sh eval configs/pilot_9b.yaml adapter   # once, after selection on dev
 #   DEPEND=afterok:12345.gaas bash pbs/submit.sh ...      # start only after another job succeeded
+#   MEM=192gb bash pbs/submit.sh review configs/main_27b.yaml REQUESTS.jsonl RESULTS.jsonl   # review an LMS export
 #
 # Job ids go to stdout, one per line; descriptions go to stderr. WALLTIME and MEM override
 # the defaults. gpu_free routes a 1-GPU job of at most 1 h to gpu_free_high (priority) and
@@ -20,7 +21,7 @@ cd "$(dirname "$0")/.."
 # shellcheck disable=SC1091
 source pbs/env.sh >/dev/null 2>&1
 
-kind=${1:?usage: bash pbs/submit.sh bootstrap | setup | train CONFIG [N] | eval CONFIG [ARM[+ARM...]]}
+kind=${1:?usage: bash pbs/submit.sh bootstrap | setup | train CONFIG [N] | eval CONFIG [ARM[+ARM...]] | review CONFIG REQUESTS RESULTS}
 for var in EVALTRAIN_PROJECT EVALTRAIN_ROOT; do
   case "${!var}" in REPLACE_WITH*|"") echo "set $var in pbs/env.sh before submitting" >&2; exit 2 ;; esac
 done
@@ -41,7 +42,7 @@ case "$kind" in
       -v "WALLTIME_S=$(seconds "$walltime")" pbs/bootstrap.pbs
     exit 0 ;;
   train) walltime=${WALLTIME:-06:00:00} ;;
-  eval) walltime=${WALLTIME:-01:00:00} ;;
+  eval | review) walltime=${WALLTIME:-01:00:00} ;;
   *) echo "unknown job kind: $kind" >&2; exit 2 ;;
 esac
 
@@ -65,6 +66,14 @@ case "$kind" in
     arm=${3:-base}
     id=$(qsub "${common[@]}" "${dep[@]}" -v "$vars,ARM=$arm,SPLIT=${SPLIT:-dev}${FINAL:+,FINAL=1}" pbs/eval.pbs)
     echo "eval $config $arm -> $id${dep:+ (${dep[1]})}" >&2
+    echo "$id"
+    ;;
+  review)
+    # An exported LMS course (public or synthetic material only), reviewed by the run's adapter.
+    requests=${3:?requests file required}
+    out=${4:?results file required}
+    id=$(qsub "${common[@]}" "${dep[@]}" -v "$vars,REQUESTS=$requests,OUT=$out" pbs/review.pbs)
+    echo "review $requests with $config -> $id" >&2
     echo "$id"
     ;;
 esac
