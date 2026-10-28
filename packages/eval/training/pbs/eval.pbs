@@ -1,0 +1,31 @@
+#!/bin/bash
+#PBS -N evaltrain-eval
+#PBS -l select=1:ncpus=12:ngpus=1:mem=128gb
+#PBS -l walltime=01:00:00
+# ARM=base|base-thinking|adapter|merged, or several joined with "+" (PBS splits -v on
+# commas), run one after another in this job. SPLIT=dev|test (FINAL=1 for test).
+# Predictions are appended per batch and already-predicted ids are skipped, so an
+# evaluation that does not finish in one job continues in the next submission.
+
+JOB_START_EPOCH=$(date +%s)
+set -euo pipefail
+cd "$PBS_O_WORKDIR"
+# shellcheck disable=SC1091
+source pbs/env.sh
+: "${CONFIG:?submit through pbs/submit.sh}"
+mkdir -p "$EVALTRAIN_ROOT/logs"
+exec > >(tee -a "$EVALTRAIN_ROOT/logs/${PBS_JOBID%%.*}-eval-${ARM:-base}.log") 2>&1
+
+echo "job=${PBS_JOBID} host=$(hostname) start=$(date -Is) config=${CONFIG} arm=${ARM:-base} split=${SPLIT:-dev}"
+nvidia-smi --query-gpu=index,name,memory.total,driver_version --format=csv
+
+IFS=+ read -ra arms <<<"${ARM:-base}"
+for arm in "${arms[@]}"; do
+  echo "--- arm ${arm} $(date -Is)"
+  python -m evaltrain.run_eval \
+    --config "$CONFIG" \
+    --arm "$arm" \
+    --split "${SPLIT:-dev}" \
+    ${FINAL:+--final} \
+    --deadline-epoch $((JOB_START_EPOCH + ${WALLTIME_S:-3600} - 480))
+done

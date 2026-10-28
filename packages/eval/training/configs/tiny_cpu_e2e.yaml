@@ -1,0 +1,27 @@
+# CPU end-to-end check of the MS-SWIFT training path on a tiny random-weight Qwen3.5
+# (tests/tiny_qwen35.py): real template, loss mask, LoRA targeting, plugin callback,
+# step-limited stop, resume, export and adapter inference. Not a model experiment.
+run_id: tiny-cpu-e2e
+seed: 7
+model:
+  id: tiny-qwen3.5
+  path: ${EVALTRAIN_ROOT}/hf/tiny-qwen3.5
+  template: qwen3_5
+data:
+  prepared_dir: ${EVALTRAIN_ROOT}/prepared/tiny
+  max_length: 4096
+  mixture:
+    prometheus_rubric: {n: 12}
+    ragtruth_grounding: {n: 12}
+lora: {rank: 8, alpha: 16, dropout: 0.0}
+train:
+  epochs: 1
+  learning_rate: 1.0e-3
+  per_device_batch_size: 1
+  grad_accum: 2
+  warmup_ratio: 0.1
+  logging_steps: 1
+  dataloader_num_workers: 0
+  extra_swift_args: {model_type: qwen3_5, report_to: none, use_cpu: "true"}
+walltime: {reserve_minutes: 0, save_every_minutes: 1000}
+eval: {tasks: [prometheus_rubric, ragtruth_grounding, oak_distractors], limit_per_task: 2, max_model_len: 8192}

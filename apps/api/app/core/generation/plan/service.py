@@ -4,6 +4,9 @@ Single pass, no critique: this is the baseline the evaluation layer will later
 be compared against. Two model calls (objectives, then a syllabus built on
 them). Each lesson keeps the source chunks it was planned from so lesson
 generation starts from the same evidence.
+
+A rebuild can carry the author's instructions and intents (brief.py); they are appended
+to both calls and kept on the new version's ``meta`` so the history says why it exists.
 """
 from __future__ import annotations
 
@@ -14,6 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.generation.brief import appendix, compose
 from app.core.generation.evidence import evidence_budget, outline_chunks, pack, resolve_numbers
 from app.core.jobs import service as jobs
 from app.core.llm.client import chat_structured, llm_call_count
@@ -142,7 +146,8 @@ def build_plan_records(
     return plan, stats
 
 
-async def generate_plan(db: Session, project_id: str, *, job_id: str | None = None) -> dict:
+async def generate_plan(db: Session, project_id: str, *, job_id: str | None = None, instructions: str | None = None,
+                        intents: list[str] | None = None) -> dict:
     started = time.perf_counter()
     calls_before = llm_call_count()
     project = db.get(Project, project_id)
@@ -156,6 +161,7 @@ async def generate_plan(db: Session, project_id: str, *, job_id: str | None = No
     audience = project.target_audience or DEFAULT_AUDIENCE
     duration = str(project.duration_minutes or DEFAULT_DURATION)
     goals = project.learning_goals or DEFAULT_GOALS
+    brief = compose(instructions, intents)
 
     # One context serves both calls so reference numbers mean the same thing in each.
     # Budget against the larger (syllabus) prompt, leaving room for the objectives list.
@@ -171,7 +177,7 @@ async def generate_plan(db: Session, project_id: str, *, job_id: str | None = No
         jobs.progress(db, job_id, current=0, total=2, message=f"Drafting objectives from {len(evidence)} source excerpts")
     objectives = await chat_structured(
         prompts.system_prompt,
-        prompts.render("objectives", audience=audience, duration_minutes=duration, goals=goals, rag_context=context),
+        prompts.render("objectives", audience=audience, duration_minutes=duration, goals=goals, rag_context=context) + appendix(brief),
         ObjectiveSet,
         temperature=0.3,
     )
@@ -183,7 +189,7 @@ async def generate_plan(db: Session, project_id: str, *, job_id: str | None = No
     objectives_text = "\n".join(f"{i}. {o.text} ({o.bloom_level})" for i, o in enumerate(objectives.objectives, 1))
     syllabus = await chat_structured(
         prompts.system_prompt,
-        prompts.render("syllabus", duration_minutes=duration, objectives=objectives_text, audience=audience, rag_context=context),
+        prompts.render("syllabus", duration_minutes=duration, objectives=objectives_text, audience=audience, rag_context=context) + appendix(brief),
         Syllabus,
         temperature=0.3,
     )
@@ -192,6 +198,7 @@ async def generate_plan(db: Session, project_id: str, *, job_id: str | None = No
     plan, stats = build_plan_records(project_id, version, objectives, syllabus, cmap, source_of_chunk)
     if not plan.modules:
         raise ValueError("The model returned a syllabus with no usable lessons.")
+    plan.meta = {"note": "Rebuilt outline" if version > 1 else "Generated outline", "instructions": brief or None, "intents": intents or []}
     db.add(plan)
     db.commit()
 

@@ -6,13 +6,17 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth.deps import get_current_user, require_admin, require_instructor
 from app.core.auth.security import decode_token
 from app.core.jobs import service as jobs
 from app.db.session import SessionLocal, get_db
+from app.models.course import CoursePlan
 from app.models.job import Job
+from app.models.project import Project
+from app.models.source import Source
 from app.models.user import User
 from app.schemas.job import JobOut
 
@@ -21,7 +25,23 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 @router.get("", response_model=list[JobOut])
 def list_jobs(project_id: str | None = None, recent_minutes: int = 30, _: User = Depends(require_instructor), db: Session = Depends(get_db)):
-    return jobs.list_jobs(db, project_id=project_id, recent_minutes=recent_minutes)
+    rows = jobs.list_jobs(db, project_id=project_id, recent_minutes=recent_minutes)
+    project_ids = {j.project_id for j in rows if j.project_id}
+    source_ids = {j.payload.get("source_id") for j in rows if j.payload.get("source_id")}
+    projects = dict(db.execute(select(Project.id, Project.name).where(Project.id.in_(project_ids))).all()) if project_ids else {}
+    sources = dict(db.execute(select(Source.id, Source.filename).where(Source.id.in_(source_ids))).all()) if source_ids else {}
+    courses: dict[str, str] = {}
+    for plan in db.scalars(select(CoursePlan).where(CoursePlan.project_id.in_(project_ids)).order_by(CoursePlan.version)) if project_ids else []:
+        courses[plan.project_id] = plan.title  # ascending versions: the latest wins
+    return [
+        JobOut.model_validate(j).model_copy(update={
+            "project_name": projects.get(j.project_id),
+            "course_title": courses.get(j.project_id),
+            # Jobs record the file name since 28 Oct 2026; older ones are looked up while the source exists.
+            "source_name": j.payload.get("filename") or sources.get(j.payload.get("source_id")),
+        })
+        for j in rows
+    ]
 
 
 @router.get("/{job_id}", response_model=JobOut)

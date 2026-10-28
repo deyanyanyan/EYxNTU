@@ -41,7 +41,24 @@ Changing the embedding model requires a deliberate index migration/re-embedding 
 
 TTS is excluded from normal startup. Enable it with `--profile media`; the current image installs Piper. Voices must be supplied separately. Kokoro, video rendering and packaging need further implementation and verification.
 
-The `gpu` profile is experimental and intended for a Linux NVIDIA host with container GPU support. It changes LLM serving to vLLM; it does not add GPU access to the API/worker. Prepare and configure `VLLM_MODEL` before starting it. Use the same served name for `LLM_MODEL`; adjust `LLM_BASE_URL=http://inference:8000/v1`. See [inference notes](../services/inference/README.md).
+The `gpu` profile is experimental and intended for a Linux NVIDIA host with container GPU support. It changes LLM serving to vLLM, serving one base model plus the team's custom LoRA adapters; it does not add GPU access to the API/worker. Prepare the model bundle and set `LLM_BASE_URL=http://inference:8000/v1`. Set `LLM_MODEL` to the base model's served name or to an adapter name. See [inference notes](../services/inference/README.md) for the bundle, release steps and sizing.
+
+## GPU profile and custom models
+
+| Setting | Purpose |
+|---|---|
+| `VLLM_MODEL` | Base model: a hub id already in `HF_HOME` (the server runs offline) or a directory under `/data/models` |
+| `VLLM_REVISION` | Pinned hub revision of the base; `make models-verify` requires it to match `infra/models.lock.json` |
+| `VLLM_BASE_ID` | Hub id of the base when `VLLM_MODEL` is a directory, so adapters can be checked against it |
+| `VLLM_MAX_MODEL_LEN`, `VLLM_GPU_MEMORY_UTILIZATION` | Server context window and GPU memory share |
+| `VLLM_LORA_MODULES` | Space-separated `name=dir` adapters under `data/models/adapters`; each name becomes a model the app can request. The server refuses to start if an adapter was trained on a different base or revision |
+| `VLLM_MAX_LORAS`, `VLLM_MAX_LORA_RANK` | Adapter slots held at once, and the largest LoRA rank (the reviewer uses 16) |
+| `VLLM_EXTRA_ARGS` | Further `vllm serve` flags, appended verbatim |
+| `REVIEWER_ENABLED=false` | Keep off until a validated reviewer adapter passes `make served-check` |
+| `REVIEWER_BASE_URL`, `REVIEWER_API_KEY`, `REVIEWER_MODEL` | The reviewer endpoint and its served adapter name; it is separate from `LLM_*`, so the generator is unaffected |
+| `REVIEWER_MAX_TOKENS`, `REVIEWER_TIMEOUT_SECONDS` | Reply budget and request timeout for one review |
+| `REVIEWER_CONTEXT_TOKENS=8192` | Reviews must fit without truncation, as in training; longer ones are split into scoped cases |
+| `REVIEWER_ENABLE_THINKING=false` | The adapter was trained and evaluated with the template's thinking mode off |
 
 ## Development outside Docker
 

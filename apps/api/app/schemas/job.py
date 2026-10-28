@@ -19,5 +19,9 @@ class JobOut(BaseModel):
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None
+    # Filled by the job list so the job centre can say what each job is about.
+    project_name: str | None = None
+    course_title: str | None = None  # the project's latest course plan, when it has one
+    source_name: str | None = None
 
     model_config = {"from_attributes": True}

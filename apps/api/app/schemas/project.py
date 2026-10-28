@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, computed_field
+
+from app.core.rag.rendition import viewer_kind
 
 
 class ProjectCreate(BaseModel):
@@ -29,8 +31,27 @@ class SourceOut(BaseModel):
     page_count: int | None = None
     chunk_count: int
     created_at: datetime
+    storage_path: str = Field(exclude=True)
 
     model_config = {"from_attributes": True}
+
+    @computed_field
+    @property
+    def viewer(self) -> str | None:
+        """How the source viewer can show this file: "pdf", "text", or None (nothing viewable yet)."""
+        return viewer_kind(self.storage_path)
+
+
+class LessonRefOut(BaseModel):
+    id: str
+    title: str
+
+
+class SourceUsageOut(BaseModel):
+    """How the project's current course draws on one source."""
+
+    in_course: bool
+    lessons: list[LessonRefOut]
 
 
 class ProjectOut(BaseModel):

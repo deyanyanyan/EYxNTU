@@ -1,0 +1,6 @@
+# per-user cluster settings (paths, project code)
+pbs/env.sh
+# local outputs: datasets, prepared examples, runs and model files live under $EVALTRAIN_ROOT
+artifacts/
+*.safetensors
+*.bin

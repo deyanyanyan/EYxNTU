@@ -1,0 +1,67 @@
+#!/bin/bash
+#PBS -N evaltrain-bootstrap
+#PBS -l select=1:ncpus=12:ngpus=1:mem=128gb
+#PBS -l walltime=01:00:00
+# First GPU job while the gpu_datamover queue is unavailable (its jobs fail with
+# "invalid uid/gid"). The login node must not run work, so everything happens here:
+#   1. probe the node; stop at once if it cannot reach PyPI / Hugging Face
+#   2. build the pinned venv          3. stage Qwen3.5-9B
+#   4. GPU smoke test                 5. stage Qwen3.8-27B with the remaining time
+# Every step is idempotent (downloads resume), so resubmitting finishes the work.
+# At most 1 h keeps the job in the priority queue gpu_free_high.
+#   qsub -P <project> -q gpu_free -o $EVALTRAIN_ROOT/logs -j oe pbs/bootstrap.pbs
+
+JOB_START=$(date +%s)
+DEADLINE=$((JOB_START + ${WALLTIME_S:-3600} - 180))
+set -uo pipefail
+cd "$PBS_O_WORKDIR" || exit 1
+export EVALTRAIN_SETUP=1
+# shellcheck disable=SC1091
+source pbs/env.sh
+mkdir -p "$EVALTRAIN_ROOT/logs"
+exec > >(tee -a "$EVALTRAIN_ROOT/logs/${PBS_JOBID%%.*}-bootstrap.log") 2>&1
+left() { echo $((DEADLINE - $(date +%s))); }
+step() { echo; echo "=== $(date +%T) $*"; }
+
+step "probe"
+bash pbs/probe.pbs
+if ! curl -sS -o /dev/null --max-time 20 https://pypi.org/simple/ms-swift/; then
+  echo "BOOTSTRAP STOP: this node cannot reach PyPI; staging needs another route"; exit 3
+fi
+
+step "venv"
+if [ ! -f "$EVALTRAIN_ENV/bin/activate" ]; then python3 -m venv "$EVALTRAIN_ENV"; fi
+# shellcheck disable=SC1091
+source "$EVALTRAIN_ENV/bin/activate"
+if [ ! -f "$EVALTRAIN_ENV.freeze.txt" ]; then
+  python -m pip install --upgrade pip &&
+  python -m pip install -r requirements/cluster.txt &&
+  python -m pip install -e . &&
+  python -m pip freeze > "$EVALTRAIN_ENV.freeze.txt" || { echo "BOOTSTRAP STOP: pip install failed"; rm -f "$EVALTRAIN_ENV.freeze.txt"; exit 4; }
+fi
+python -m pip install -e . --no-deps -q
+
+status=0
+step "Qwen3.5-9B ($(left)s left)"
+if timeout "$(left)" hf download Qwen/Qwen3.5-9B --revision c202236235762e1c871ad0ccb60c8ee5ba337b9a > /dev/null; then
+  echo "9B staged"
+else
+  echo "9B incomplete (resubmit to resume)"; status=5
+fi
+
+step "GPU smoke test"
+timeout 900 python -m evaltrain.gpu_smoke
+smoke=$?
+echo "smoke exit=$smoke"
+[ "$smoke" -eq 0 ] || status=6
+
+step "Qwen3.8-27B ($(left)s left)"
+# Not needed by the 9B milestone, so an unfinished download does not fail the job.
+timeout "$(left)" hf download Qwen/Qwen3.8-27B --revision 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0 > /dev/null && echo "27B staged" || echo "27B incomplete (resubmit to resume)"
+
+step "summary"
+du -sh "$HF_HOME"/hub/models--Qwen--* 2>/dev/null
+echo "bootstrap done $(date -Is) status=$status"
+# Non-zero when the venv, the 9B model or the smoke test is not ready, so jobs chained
+# with afterok never start on a broken environment.
+exit "$status"

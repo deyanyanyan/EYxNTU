@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -N evaltrain-probe
+#PBS -l select=1:ncpus=12:ngpus=1:mem=16gb
+#PBS -l walltime=00:05:00
+# Five-minute check of what a GPU job can see: identity, GPU/driver, internet access
+# and download speed, storage. Submit:
+#   qsub -P <project> -q gpu_free -o $EVALTRAIN_ROOT/logs -j oe pbs/probe.pbs
+cd "$PBS_O_WORKDIR" || exit 1
+echo "host=$(hostname) date=$(date -Is)"
+echo "id: $(id)"
+echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
+nvidia-smi --query-gpu=index,name,memory.total,driver_version --format=csv
+nvidia-smi | sed -n '3p'
+for url in https://huggingface.co/api/models/Qwen/Qwen3.5-9B https://pypi.org/simple/ms-swift/ https://files.pythonhosted.org/ https://raw.githubusercontent.com/ParticleMedia/RAGTruth/main/LICENSE; do
+  timeout 15 curl -sS -o /dev/null -w "reach %{http_code} %{time_total}s $url\n" "$url" 2>&1 || echo "unreachable $url"
+done
+# ~200 MB of a pinned model shard, to estimate staging time for 75 GB
+timeout 60 curl -sSL -o /dev/null -r 0-209715199 -w "hf download speed: %{speed_download} B/s over %{size_download} B\n" \
+  "https://huggingface.co/Qwen/Qwen3.5-9B/resolve/c202236235762e1c871ad0ccb60c8ee5ba337b9a/model.safetensors-00001-of-00004.safetensors" 2>&1 || echo "hf download test failed"
+df -h "$HOME" | tail -1
+nproc; free -g | sed -n '2p'

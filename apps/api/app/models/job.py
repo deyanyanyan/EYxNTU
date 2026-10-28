@@ -34,6 +34,7 @@ class JobKind(enum.StrEnum):
     RENDER_VIDEO = "render_video"
     PACKAGE_SCORM = "package_scorm"
     EVAL_RUN = "eval_run"
+    REVISE_CONTENT = "revise_content"  # proposed changes for slides and questions
 
 
 ACTIVE_STATUSES = (JobStatus.PENDING.value, JobStatus.RUNNING.value)

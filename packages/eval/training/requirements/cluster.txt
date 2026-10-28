@@ -1,0 +1,28 @@
+# GPU environment for training (MS-SWIFT, transformers backend) and inference (vLLM)
+# on one allocated H200. One environment serves both, because the documented
+# constraints intersect (researched 27 Oct 2026; NOT yet installed on the cluster):
+#   vllm 0.32.0      pins torch==2.13.0 and transformers>=5.16.1,<5.20
+#   ms-swift 4.6.0   requires transformers<5.20, peft<0.21, trl<1.0, datasets<4.8.5
+#   MS-SWIFT Qwen3.5/3.6/3.8 recipe: transformers>=5.9, flash-linear-attention>=0.4.2
+# pbs/setup_env.sh installs this file and records the full `pip freeze` next to the
+# environment; every run bundle copies that freeze. Python 3.12.
+torch==2.13.0
+torchvision==0.28.0  # requires torch==2.13.0; the Qwen3.5 processor imports it even for text-only data
+transformers==5.19.0
+peft==0.20.0
+trl==0.29.1
+datasets==4.8.4
+ms-swift==4.6.0
+vllm==0.32.0
+# Triton kernels for the Gated DeltaNet layers. Without them transformers silently
+# falls back to slow, memory-hungry PyTorch ops; packing is unsafe without them.
+flash-linear-attention==0.5.2
+qwen_vl_utils==0.0.14
+liger-kernel==0.8.5
+numpy
+scipy
+PyYAML
+# Optional, compiled from source against the CUDA toolkit; install in a GPU job and
+# compare step time before relying on it (the conv1d fallback is comparatively cheap):
+#   pip install git+https://github.com/Dao-AILab/causal-conv1d@v1.7.0 --no-build-isolation
+# flash-attn is only needed for --packing (attn_impl flash_attn); the pilot uses sdpa.

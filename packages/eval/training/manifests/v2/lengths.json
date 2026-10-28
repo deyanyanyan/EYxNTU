@@ -1,0 +1,100 @@
+{
+  "tokenizer": "Qwen/Qwen3.5-9B",
+  "max_length": 4096,
+  "thinking": false,
+  "summary": {
+    "oak_distractors.dev": {
+      "n": 185,
+      "mean": 309.4918918918919,
+      "p50": 308,
+      "p90": 320,
+      "p99": 331,
+      "max": 338,
+      "completion_p99": 8,
+      "over_max_length": 0
+    },
+    "oak_distractors.test": {
+      "n": 65,
+      "mean": 308.8615384615385,
+      "p50": 307,
+      "p90": 319,
+      "p99": 334,
+      "max": 342,
+      "completion_p99": 8,
+      "over_max_length": 0
+    },
+    "oak_distractors.train": {
+      "n": 61,
+      "mean": 310.40983606557376,
+      "p50": 310,
+      "p90": 322,
+      "p99": 335,
+      "max": 341,
+      "completion_p99": 8,
+      "over_max_length": 0
+    },
+    "prometheus_rubric.dev": {
+      "n": 4199,
+      "mean": 1074.2052869730887,
+      "p50": 1075,
+      "p90": 1247,
+      "p99": 1416,
+      "max": 1761,
+      "completion_p99": 236,
+      "over_max_length": 0
+    },
+    "prometheus_rubric.test": {
+      "n": 2000,
+      "mean": 1051.531,
+      "p50": 1047,
+      "p90": 1235,
+      "p99": 1427,
+      "max": 1654,
+      "completion_p99": 235,
+      "over_max_length": 0
+    },
+    "prometheus_rubric.train": {
+      "n": 95522,
+      "mean": 1055.8617491258558,
+      "p50": 1056,
+      "p90": 1233,
+      "p99": 1413,
+      "max": 1856,
+      "completion_p99": 233,
+      "over_max_length": 0
+    },
+    "ragtruth_grounding.dev": {
+      "n": 1489,
+      "mean": 1099.25520483546,
+      "p50": 1040,
+      "p90": 1516,
+      "p99": 2243,
+      "max": 2724,
+      "completion_p99": 173,
+      "over_max_length": 0
+    },
+    "ragtruth_grounding.test": {
+      "n": 2675,
+      "mean": 1073.3293457943926,
+      "p50": 1001,
+      "p90": 1572,
+      "p99": 2197,
+      "max": 2631,
+      "completion_p99": 151,
+      "over_max_length": 0
+    },
+    "ragtruth_grounding.train": {
+      "n": 13453,
+      "mean": 1092.2919051512674,
+      "p50": 1040,
+      "p90": 1541,
+      "p99": 2297,
+      "max": 3055,
+      "completion_p99": 188,
+      "over_max_length": 0
+    }
+  },
+  "over_max_length": [],
+  "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+  "note": "copied from v1: example texts are unchanged, only ids differ"
+}

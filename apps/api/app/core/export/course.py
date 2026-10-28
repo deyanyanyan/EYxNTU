@@ -74,8 +74,9 @@ def reference_for_chunk(references: dict[str, dict], chunk_id: str | None) -> di
 
 
 def pick_asset(assets: list[Asset], kind: str) -> Asset | None:
-    """Prefer an approved asset, else the newest generated one."""
-    of_kind = [a for a in assets if a.kind == kind]
+    """The current asset of a kind: an approved one if any, else the newest. Superseded
+    versions (kept for restore) never count."""
+    of_kind = [a for a in assets if a.kind == kind and a.superseded_at is None]
     approved = [a for a in of_kind if a.approval == ApprovalState.APPROVED.value]
     pool = approved or of_kind
     return max(pool, key=lambda a: (a.version, a.created_at)) if pool else None

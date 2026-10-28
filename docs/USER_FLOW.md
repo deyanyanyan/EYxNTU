@@ -34,7 +34,7 @@ To skip ahead and see a finished course, run `sh scripts/compose.sh exec -T api 
 
 ## Flow map
 
-An instructor's path is sign in, create a project, upload sources, then plan, approve, generate and export from the Course tab.
+An instructor's path is sign in, create a project, upload sources, then build the course in the **Outline**, **Lessons** and **Publish** tabs.
 
 ```mermaid
 flowchart LR
@@ -43,17 +43,17 @@ flowchart LR
   C --> D[Project workbench]
   D --> E[Upload sources<br/>wait for ready]
   E --> F[Search sources<br/>optional check]
-  E --> G[Generate plan]
-  G --> H{Plan OK?}
-  H -- No --> G
-  H -- Yes --> I[Approve plan]
+  E --> G[Generate outline]
+  G --> H{Outline OK?}
+  H -- Edit or rebuild --> G
+  H -- Yes --> I[Approve outline]
   I --> J[Generate lessons]
-  J --> K[Review slides,<br/>quiz, citations]
-  K --> L[Export course]
-  L --> M[Download<br/>SCORM / PPTX]
+  J --> K[Review slides and quiz,<br/>fix flagged issues]
+  K --> L[Export]
+  L --> M[Preview, or download<br/>SCORM / PPTX]
 ```
 
-The stepper at the top right of the workbench tracks the same four stages: **1 Ingest → 2 Plan → 3 Generate → 4 Export**. The current stage is highlighted and finished stages turn green.
+The centre of the workbench has one tab per stage: **Sources**, **Outline**, **Lessons** and **Publish**. Each tab's badge shows its stage's state, such as `v2 draft`, `6 flags` or `exported 28 Oct`.
 
 ## Step-by-step walkthrough
 
@@ -73,13 +73,12 @@ Follow these steps in order the first time. Use a window at least 1024 px wide: 
 
 ### 3. Learn the workbench layout
 
-The workbench has three panes and a stepper:
+The workbench has three panes:
 
 | Area | What it holds |
 | --- | --- |
-| Top bar | Project name, and the Ingest → Plan → Generate → Export stepper |
-| Left pane: Sources | Uploaded files, their status, re-ingest and delete buttons |
-| Centre: Sources / Course tabs | Knowledge-base search, or the three course steps |
+| Left pane: Sources | Uploaded files, their status, and view, re-ingest and delete buttons |
+| Centre: stage tabs | **Sources** (knowledge-base search and the file viewer), **Outline**, **Lessons**, **Publish** |
 | Right pane: Inspector | The course brief, or details of a selected passage |
 
 ### 4. Upload sources
@@ -87,7 +86,8 @@ The workbench has three panes and a stepper:
 1. In the **Sources** pane, click **Add** and pick one or more PDF, DOCX, PPTX, Markdown or text files.
 2. Each file shows a status badge and a progress bar while it is processed: **uploaded → parsing → parsed → embedding → ready**.
 3. When a file is **ready**, its line shows size, page count and chunk count.
-4. Use the refresh icon to re-ingest a file, or the bin icon to delete it (you are asked to confirm).
+4. Click a file's name or the eye icon to view it: PDFs as uploaded, Word and PowerPoint files as a PDF rendering, text as text.
+5. Use the refresh icon to re-ingest a file, or the bin icon to delete it. If the course uses the file, you choose between keeping the course as it is and rebuilding the outline without it.
 
 Course planning unlocks once at least one source is **ready**.
 
@@ -101,40 +101,39 @@ If nothing comes back, the message reads "No chunks above the similarity thresho
 
 ## Course generation and export
 
-Open the **Course** tab in the workbench centre. It shows three numbered step cards; each unlocks when the one before it is done. You can switch tabs while a step runs: progress keeps updating.
+The course has three stage tabs after **Sources**. Each has one highlighted button for its next step. You can switch tabs while a run is going: progress keeps updating.
 
-### Step 1: Plan the course
+### Outline
 
-1. Click **Generate plan**. A progress bar and status message appear under the card.
-2. When it finishes, the card shows the plan: title, summary, version (for example `v1`) and a status badge.
-3. Review the parts of the plan:
-    - **Learning objectives**, each with an ID and a Bloom level.
-    - **Modules** and their **lessons**, each with minutes, linked objectives and a source count.
-    - **Coverage**: the share of each source's excerpts the plan drew on.
-4. Read the summary line under the card, such as lesson count, model calls, time taken and any lessons with no linked source.
-5. Not happy? Click **New version** to regenerate. Happy? Click **Approve plan**. Lessons are generated only from an approved plan.
+The outline is the course plan: modules, lessons and the objectives each lesson teaches.
 
-### Step 2: Generate lessons
+1. Click **Generate outline**. You can add instructions first, such as "keep it to four lessons".
+2. Review it. Each lesson row shows its objective, its length and its state (`not generated`, `3 flagged`, `approved`).
+3. Fix small things directly. Click a title to rename it. Hover a lesson to move it up or down, or to remove it. Use **Add lesson** under a module.
+4. To change the structure wholesale, click **Rebuild outline…**, say what should change, and run it. This creates the next version as a draft.
+5. Click **Approve outline**. Lessons are generated only from an approved outline.
 
-1. Click **Generate lessons**. Allow a few minutes per lesson on a laptop.
-2. The summary line reports decks, slides, accepted and rejected quiz questions, and uncited bullets.
-3. Back in the plan, lesson rows now show slide and question counts and become clickable.
-4. Click a lesson to open it:
-    - Each slide shows its title, bullets, any table, and speaker notes.
-    - Numbered chips such as **1** are citations. Click one to see the source passage in the **Inspector**.
-    - The **Quiz** lists kept questions with the correct answer in green, an explanation, and a **source** quote you can click.
-5. Click **← Course** to return to the step cards.
+Editing an approved outline creates a new draft version and keeps every lesson's content. Approve the new version to work on its lessons. Use the version menu to look at an earlier version, and **What changed** to compare a version with the one before it.
 
-Use **Regenerate** to rebuild every lesson from the current approved plan.
+### Lessons
 
-### Step 3: Export
+The lesson list sits beside the open lesson.
 
-1. Click **Export course**.
-2. Each export appears as a row with its date and plan version.
-3. Click **SCORM** to download `course_scorm12.zip`, a SCORM 1.2 package with one SCO per lesson for your LMS.
-4. Click **PPTX** to download `course.pptx`, an editable PowerPoint.
+1. Click **Generate all lessons** the first time. Allow a few minutes per lesson on a laptop.
+2. Click a lesson to read it. Numbered chips such as **1** are citations: click one to see the source passage in the **Inspector**.
+3. Reviewer flags appear on the slide or question they concern. A slide with a flag has a **Fix** button; a lesson with flags has **Fix N flagged**. A fix comes back as a proposed change.
+4. Proposed changes show what leaves and what arrives. Click **Accept** or **Keep original** on each, or **Accept all**.
+5. Hover a slide or question to **Regenerate** it or **Edit** it in place. **Regenerate lesson…** rewrites the whole lesson at once. Every regeneration panel takes optional instructions and quick changes such as **Simpler language**.
+6. **History** lists every earlier version of the lesson; **Restore** brings one back.
+7. Click **Approve lesson** when it is ready. Approved lessons cannot change until you click **Reopen**.
 
-A row marked **unreviewed content** includes material that has not been approved. When the export finishes, all four stepper stages turn green.
+Tick several lessons to fix, regenerate or approve them together.
+
+### Publish
+
+1. The checklist shows what is still open: unapproved outline, ungenerated or unapproved lessons, open flags and waiting changes. None of these block an export.
+2. Click **Export PowerPoint and SCORM**. Each export appears as a row with its date and outline version.
+3. Click **Preview** to play the SCORM package in the browser as a learner would, **SCORM** to download `course_scorm12.zip`, or **PPTX** to download `course.pptx`.
 
 ## Status, errors and troubleshooting
 
@@ -145,18 +144,18 @@ Most problems show as a red badge or a red line of text; the **Jobs** page shows
 | Sources and Inspector panes missing | Window is narrower than 1024 px | Widen the window |
 | Source badge **failed** with red text under it | Parsing or embedding failed | Read the error, then click re-ingest; delete and re-upload if it fails again |
 | Project card shows **failed** | At least one of its sources failed | Open the project and fix that source |
-| **Generate plan** greyed out, "Waiting for at least one source…" | No source is ready yet | Wait for a source to reach **ready** |
-| **Generate lessons** greyed out | Plan not approved, or a plan run is active | Approve the plan, or wait for the run |
-| **Export course** greyed out | No lessons generated yet | Run Step 2 first |
-| Lesson row not clickable | That lesson has no slides or quiz yet | Run or rerun **Generate lessons** |
+| **Generate outline** greyed out | No source is ready yet | Wait for a source to reach **ready** |
+| **Lessons** tab asks you to review the outline | The latest outline is not approved | Approve it on the **Outline** tab |
+| **Export PowerPoint and SCORM** greyed out | No lessons generated yet | Generate lessons first |
+| Regenerate and Edit missing on a lesson | The lesson is approved | Click **Reopen** |
 | "Queued — waiting for the worker" does not move | The worker container is not running | Check `docker compose ps`; restart the stack |
-| "Failed: …" under a step card | That run errored | Read the first line; check the full message on **Jobs** and retry |
+| A red message at the top of a tab | That run or change failed | Read it; check the full message on **Jobs** and retry |
 | Summary lists uncited bullets or broken citations | Baseline output quality, not a crash | Review those slides before sharing the export |
 | Sent back to sign-in | Session expired | Sign in again; you return to the same page |
 
 ### Jobs page
 
-Click **Jobs** in the left rail to see every run: kind, status, progress, message and age. It refreshes every 3 seconds. Click **Cancel** on a pending or running job to stop it.
+Click **Jobs** in the left rail to see every run: what it worked on (such as the file being ingested), its course, status, progress, message and age. It refreshes every 3 seconds. Click **Cancel** on a pending or running job to stop it.
 
 ### Admin screens
 

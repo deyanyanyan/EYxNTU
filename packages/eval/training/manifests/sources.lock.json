@@ -1,0 +1,77 @@
+{
+  "prometheus_fc": {
+    "revision": "22a339f961c40b07261bea44ec10849c7440b75f",
+    "files": [
+      {
+        "path": "new_feedback_collection.json",
+        "sha256": "bd6ae6f6da5035c180b4ac398fce7cdd04a2f6d48bff29ef21ce9865a348ddd5",
+        "bytes": 1017915510
+      },
+      {
+        "path": "README.md",
+        "sha256": "5cef71560630e6d4fc572739f7d9d763f4a246f5df2cb48421048bd151f0d729",
+        "bytes": 4927
+      }
+    ]
+  },
+  "prometheus_tests": {
+    "revision": "dcfb44272d5d0414832f5dbb8c2a05ebc2614234",
+    "files": [
+      {
+        "path": "eval/benchmark/data/feedback_collection_test.json",
+        "sha256": "3950f1f9f787bd512e5082bbc4071376c83e32d2ab0b11be88e236ed38ec69f8",
+        "bytes": 5378455
+      },
+      {
+        "path": "eval/benchmark/data/feedback_collection_ood_test.json",
+        "sha256": "7b9b47bf0ba5f9174685f03faddebff6ed2ba0ac17ee1de1b53b714ba65801dc",
+        "bytes": 5511377
+      },
+      {
+        "path": "LICENSE",
+        "sha256": "c8858a5a76440bbca484e134cf7df46385d090dd18b2c58e650f939258802e5b",
+        "bytes": 10141
+      }
+    ]
+  },
+  "ragtruth": {
+    "revision": "c103204b9ce28d6bbad859304bf30de72b8ed8fe",
+    "files": [
+      {
+        "path": "dataset/response.jsonl",
+        "sha256": "e4c2e4ac24fff676d8984cc61c35d791612fadc58015335d97dd632375e18073",
+        "bytes": 21458735
+      },
+      {
+        "path": "dataset/source_info.jsonl",
+        "sha256": "0dffc26ea9f3c1c3d7c7e8336b56ef1646e3cec876edffcca3c9c624d12d578b",
+        "bytes": 15117971
+      },
+      {
+        "path": "LICENSE",
+        "sha256": "b7fd7d6bdfe0cbba63c63a310914beb4a4acb8bf08da73849219f45385f5b244",
+        "bytes": 1071
+      }
+    ]
+  },
+  "oak": {
+    "revision": "737c0602659bc59d28da30d9658e4def7473eb1c",
+    "files": [
+      {
+        "path": "data/mcq_mindiff_dataset.json",
+        "sha256": "9521488afed740d2927bbdcdced98fa3d6b2ce90a1e30f492e2e3fd7ce8c77cf",
+        "bytes": 105385
+      },
+      {
+        "path": "LICENSE.md",
+        "sha256": "b2f57aa7d1c7238ba3eeb2a2d32081ad1674ee20d48f062aa9d154aacdcd2a20",
+        "bytes": 2267
+      },
+      {
+        "path": "mcq_eval/judges/mcq_mindiff_data.py",
+        "sha256": "65fe59c2a3b0ffbbd228acd82369957aa793af775f793ac70cbc4e0a9b14726d",
+        "bytes": 15542
+      }
+    ]
+  }
+}

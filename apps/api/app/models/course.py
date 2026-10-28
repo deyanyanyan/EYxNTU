@@ -28,6 +28,7 @@ class CoursePlan(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     learning_objectives: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)  # [{text, bloom_level, source_chunk_ids}]
     status: Mapped[str] = mapped_column(String(32), default=PlanStatus.DRAFT.value, nullable=False)
     coverage: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # {source_id: fraction_covered}
+    meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # why this version exists: {instructions, intents} or {edited_from, change}
 
     modules = relationship("Module", back_populates="plan", cascade="all, delete-orphan", order_by="Module.position")
 
@@ -53,6 +54,7 @@ class Lesson(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     objective_ids: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source_chunk_ids: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)  # planner's coverage map
+    origin_id: Mapped[str | None] = mapped_column(String(36), nullable=True)  # the lesson an outline version copied this from
 
     module = relationship("Module", back_populates="lessons")
     assets = relationship("Asset", back_populates="lesson", cascade="all, delete-orphan")

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.export.service import export_course
 from app.core.generation.lesson.service import generate_lessons
 from app.core.generation.plan.service import generate_plan
+from app.core.generation.revise import propose
 from app.core.jobs import service as jobs
 from app.core.llm.client import run_blocking
 from app.core.rag.ingest import ingest_source
@@ -27,11 +28,21 @@ def handle_ingest_source(db: Session, job_id: str, payload: dict) -> dict:
 
 
 def handle_generate_plan(db: Session, job_id: str, payload: dict) -> dict:
-    return run_blocking(generate_plan(db, payload["project_id"], job_id=job_id))
+    return run_blocking(generate_plan(db, payload["project_id"], job_id=job_id, instructions=payload.get("instructions"), intents=payload.get("intents")))
 
 
 def handle_generate_lessons(db: Session, job_id: str, payload: dict) -> dict:
-    return run_blocking(generate_lessons(db, payload["project_id"], job_id=job_id))
+    return run_blocking(generate_lessons(
+        db, payload["project_id"], job_id=job_id, lesson_ids=payload.get("lesson_ids") or None,
+        instructions=payload.get("instructions"), intents=payload.get("intents"),
+    ))
+
+
+def handle_revise_content(db: Session, job_id: str, payload: dict) -> dict:
+    return run_blocking(propose(
+        db, payload["project_id"], targets=payload.get("targets") or [], lesson_ids=payload.get("lesson_ids") or [], fix=bool(payload.get("fix")),
+        instructions=payload.get("instructions"), intents=payload.get("intents") or [], job_id=job_id,
+    ))
 
 
 def handle_export_course(db: Session, job_id: str, payload: dict) -> dict:
@@ -56,4 +67,5 @@ HANDLERS: dict[str, Handler] = {
     JobKind.RENDER_VIDEO.value: _not_implemented("render_video"),              # M4
     JobKind.PACKAGE_SCORM.value: handle_export_course,                         # PPTX + SCORM 1.2
     JobKind.EVAL_RUN.value: _not_implemented("eval_run"),                      # M5
+    JobKind.REVISE_CONTENT.value: handle_revise_content,                       # proposed changes and fixes
 }

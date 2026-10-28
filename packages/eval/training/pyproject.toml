@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evaltrain"
+version = "0.1.0"
+description = "Public-data reviewer training experiment for EYxNTU: data preparation, LoRA training with walltime resume, evaluation and batch inference"
+requires-python = ">=3.10"
+# Runtime pins live in requirements/*.txt; these are the import-level minimums.
+dependencies = ["numpy", "scipy", "pyyaml"]
+
+[project.optional-dependencies]
+data = ["datasets", "huggingface_hub", "transformers", "pillow"]
+test = ["pytest", "torch", "transformers", "peft", "accelerate"]
+
+[project.scripts]
+evaltrain = "evaltrain.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["evaltrain*"]
+
+[tool.ruff]
+line-length = 140
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501", "B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
