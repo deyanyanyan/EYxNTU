@@ -34,13 +34,7 @@ export default function LearnPage() {
   return (
     <Shell title="Learn">
       <div className="mx-auto max-w-3xl space-y-4 p-6">
-        <div>
-          <h1 className="text-base font-semibold">Course previews</h1>
-          <p className="text-sm text-muted-foreground">
-            Each course plays from its exported SCORM package, exactly as an LMS would deliver it: step through the lessons, take the quizzes,
-            and see what the package reports. Nothing is saved.
-          </p>
-        </div>
+        <h1 className="text-base font-semibold">Course previews</h1>
         {!ready ? null : !author ? (
           <p className="rounded-md border bg-surface p-4 text-sm text-muted-foreground">Courses will appear here once an instructor publishes them to learners. Publishing is not available yet.</p>
         ) : error ? (
