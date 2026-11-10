@@ -47,6 +47,9 @@ path = Path(folder)
 for required in ("adapter_config.json", "adapter_model.safetensors", "serving.json"):
     if not (path / required).is_file():
         sys.exit(f"adapter {name}: {path / required} is missing")
+weights = path / "adapter_model.safetensors"
+if weights.stat().st_size < 1024 and weights.read_bytes().startswith(b"version https://git-lfs.github.com/spec/"):
+    sys.exit(f"adapter {name}: {weights} is a Git LFS pointer, not the weights; fetch them with git lfs pull (docs/MODELS.md)")
 serving = json.loads((path / "serving.json").read_text(encoding="utf-8"))
 if serving.get("base_model") != base:
     sys.exit(f"adapter {name} was trained on {serving.get('base_model')}, but the server loads {base}")
