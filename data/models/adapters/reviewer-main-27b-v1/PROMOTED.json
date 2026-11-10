@@ -1,0 +1,34 @@
+{
+  "promoted_at": "2026-11-10T14:58:24+0800",
+  "source_run": "main-27b-v1",
+  "training_hash": "14187ac9a2fd46dd",
+  "code_sha256": "6eb2df5410ae1255",
+  "git_revision": null,
+  "reference_split": "dev",
+  "reference_metrics": {
+    "oak_distractors": {
+      "mae": 1.1243243243243244,
+      "spearman": 0.3146463379175741,
+      "qwk": 0.3134314008268435
+    },
+    "prometheus_rubric": {
+      "pearson": 0.9127284016438892,
+      "spearman": 0.9092816047369777,
+      "exact_all_rows": 0.7047619047619048,
+      "mae": 0.3111111111111111
+    },
+    "ragtruth_grounding": {
+      "response_f1": 0.8587896253602306,
+      "response_precision": 0.8895522388059701,
+      "response_recall": 0.83008356545961,
+      "span_char_f1": 0.6142572161380938
+    }
+  },
+  "source_sha256": {
+    "adapter_model.safetensors": "f25926a1652239d8cd57912cad30b23f952176dfc68a8be006c10effb891052c",
+    "adapter_config.json": "fd88638f3992eca19401f35006246a5aee0737d598666f9a0bc848706c3328e9",
+    "serving.json": "09425a01f6dbd72c8b2ae87fd3d8542d32161f482a5bce1688f0cab7f486382e"
+  },
+  "adapter_config_base_renamed": true,
+  "forced_past": []
+}

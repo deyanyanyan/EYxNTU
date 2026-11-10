@@ -1,0 +1,5 @@
+[lfs]
+	# The released reviewer adapters (640 MB, data/models/adapters) download only on request,
+	# so ordinary clones and pulls stay small. To serve one (docs/MODELS.md):
+	#   git lfs pull --include="data/models/adapters/reviewer-main-27b-v1/**" --exclude=""
+	fetchexclude = data/models/adapters/**

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 
 import pytest
@@ -100,6 +101,23 @@ def test_promote_copies_adapter_and_reference(tmp_path):
     assert record["training_hash"] == "abc" and record["reference_metrics"] == {"oak_distractors": {"mae": 0.8}} and record["forced_past"] == []
     with pytest.raises(SystemExit, match="already exists"):
         promote.promote(run, tmp_path / "bundle", "reviewer-v1")
+
+
+def test_promote_names_the_base_by_hub_id_and_keeps_lora_settings(tmp_path):
+    run = _finished_run(tmp_path, {"checked": True, "identical_share": 0.0})
+    lora = {"base_model_name_or_path": "/home/trainer/hf/hub/models--Qwen--Qwen3.5-9B/snapshots/abc123", "lora_alpha": 32.0,
+            "r": 16, "revision": None, "target_modules": "^(model\\.language_model.*\\.(q_proj|v_proj))$"}
+    source = run / "adapter" / "adapter_config.json"
+    source.write_text(json.dumps(lora, indent=2, sort_keys=True))
+    (run / "adapter" / "serving.json").write_text(json.dumps({"base_model": "Qwen/Qwen3.5-9B", "base_revision": "abc123"}))
+
+    dest = promote.promote(run, tmp_path / "bundle", "reviewer-v1")
+    assert json.loads((dest / "adapter_config.json").read_text()) == {**lora, "base_model_name_or_path": "Qwen/Qwen3.5-9B", "revision": "abc123"}
+    record = json.loads((dest / "PROMOTED.json").read_text())
+    assert record["adapter_config_base_renamed"] is True
+    assert record["source_sha256"]["adapter_config.json"] == hashlib.sha256(source.read_bytes()).hexdigest()
+    # The model lock hashes these files, so they must come out byte-identical on every OS.
+    assert b"\r\n" not in (dest / "adapter_config.json").read_bytes() and b"\r\n" not in (dest / "PROMOTED.json").read_bytes()
 
 
 def test_promote_refuses_unapplied_or_unevaluated_adapters(tmp_path):

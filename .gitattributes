@@ -4,3 +4,7 @@ Dockerfile text eol=lf
 *.ps1 text eol=crlf
 *.png binary
 *.woff2 binary
+# Released model adapters: weights through Git LFS, and every file kept byte-for-byte,
+# because infra/models.lock*.json records each file's SHA-256.
+data/models/adapters/** -text
+data/models/adapters/**/*.safetensors filter=lfs diff=lfs merge=lfs -text

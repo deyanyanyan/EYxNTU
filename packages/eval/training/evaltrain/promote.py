@@ -9,10 +9,16 @@ replays against the deployed server. Refuses a run that has not finished trainin
 no adapter evaluation, or whose evaluation found that the adapter was probably not
 applied. Bundles are immutable once locked, so an existing name is never overwritten.
 Record the result with ``make models-lock`` afterwards.
+
+The adapter config names its base model by the training host's local path. The bundle
+names it by hub id and revision instead (from serving.json), so PEFT and transformers
+can load the adapter on any machine. vLLM ignores both fields, and every LoRA setting is
+copied unchanged. PROMOTED.json records the SHA-256 of the evaluated source files.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import time
@@ -44,6 +50,26 @@ def check(run: Path, split: str) -> list[str]:
     return problems
 
 
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while block := f.read(1 << 24):
+            h.update(block)
+    return h.hexdigest()
+
+
+def portable_config(source: Path, target: Path, serving: dict) -> bool:
+    """Copy the adapter config, naming the base by hub id and revision. True if rewritten."""
+    config = json.loads(source.read_text(encoding="utf-8"))
+    base, revision = serving.get("base_model"), serving.get("base_revision")
+    if not base or (config.get("base_model_name_or_path"), config.get("revision")) == (base, revision):
+        shutil.copy2(source, target)
+        return False
+    config["base_model_name_or_path"], config["revision"] = base, revision
+    target.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+    return True
+
+
 def promote(run: Path, dest_root: Path, name: str, split: str = "dev", force: bool = False) -> Path:
     problems = check(run, split)
     if problems and not force:
@@ -52,8 +78,13 @@ def promote(run: Path, dest_root: Path, name: str, split: str = "dev", force: bo
     if dest.exists():
         raise SystemExit(f"{dest} already exists: promote under a new name (locked bundles are immutable)")
     (dest / "reference").mkdir(parents=True)
+    exported = run / "adapter"
+    serving = json.loads((exported / "serving.json").read_text(encoding="utf-8"))
     for f in ADAPTER_FILES:
-        shutil.copy2(run / "adapter" / f, dest / f)
+        if f == "adapter_config.json":
+            rewritten = portable_config(exported / f, dest / f, serving)
+        else:
+            shutil.copy2(exported / f, dest / f)
     evaluation = run / "eval" / f"adapter-{split}"
     for f in REFERENCE_FILES:
         shutil.copy2(evaluation / f, dest / "reference" / f)
@@ -67,9 +98,12 @@ def promote(run: Path, dest_root: Path, name: str, split: str = "dev", force: bo
         "git_revision": record.get("git_revision"),
         "reference_split": split,
         "reference_metrics": {task: {k: ci["value"] for k, ci in entry.get("ci", {}).items()} for task, entry in report.get("tasks", {}).items()},
+        "source_sha256": {f: _sha256(exported / f) for f in ADAPTER_FILES},
+        "adapter_config_base_renamed": rewritten,
         "forced_past": problems,
     }
-    (dest / "PROMOTED.json").write_text(json.dumps(promoted, indent=2), encoding="utf-8")
+    # LF on every OS: the model lock records this file's SHA-256.
+    (dest / "PROMOTED.json").write_text(json.dumps(promoted, indent=2) + "\n", encoding="utf-8", newline="\n")
     return dest
 
 

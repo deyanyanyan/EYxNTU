@@ -1,0 +1,14 @@
+{
+  "base_model": "Qwen/Qwen3.8-27B",
+  "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+  "template": "qwen3_8",
+  "enable_thinking": false,
+  "prompt_version": "66e720f8e43d",
+  "training_hash": "14187ac9a2fd46dd",
+  "checkpoint": "checkpoint-1044",
+  "lora_rank": 16,
+  "sampling": {
+    "temperature": 0.0
+  },
+  "contract": "see packages/eval/training/README.md#batch-inference-contract"
+}

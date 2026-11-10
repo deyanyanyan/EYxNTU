@@ -2,7 +2,7 @@
 
 Local document-to-course authoring prototype for the NTU / EY project. A single-pass baseline now runs end to end: upload documents, generate a course plan, approve it, generate a slide deck and quiz per lesson with source citations, and export an editable PPTX plus a SCORM 1.2 package. The evaluation layer (critique, gates and revision) is the next milestone and will be measured against this baseline.
 
-The revised scope uses pretrained models and agentic workflows; training and fine-tuning are not deliverables. See [scope and roadmap](docs/ROADMAP.md) and [the next two weeks](docs/SPRINT_01.md).
+The revised scope uses pretrained models and agentic workflows; training and fine-tuning are not deliverables. See [scope and roadmap](docs/ROADMAP.md) and [the next two weeks](docs/SPRINT_01.md). The course reviewer is the exception: its LoRA adapters, fine-tuned on public data, are released in this repository ([trained models](docs/MODELS.md)).
 
 ## Start on a teammate's laptop
 
@@ -53,6 +53,7 @@ Sign in, create a project with a course brief, and upload sources. Then open the
 | PPTX and SCORM 1.2 export | Implemented; not yet checked in a real LMS player |
 | Baseline runner (`scripts/course_baseline.py`) | Implemented; records per-step counts, citation quality, model calls and time |
 | Critique, evaluation gates, bounded revision | Next milestone; helper code and prompts exist |
+| Trained reviewer (source grounding, rubric scores, quiz distractors) | 27B LoRA adapter released with its model lock ([trained models](docs/MODELS.md)); batch review works; live serving is not yet validated on a GPU host |
 | LangGraph / LangChain agent orchestration | Planned |
 | Narrated video | Planned; optional TTS service skeleton exists |
 | Asset review and editing in the UI | Planned; assets are read-only |
@@ -86,7 +87,7 @@ Facts checked against the source were accurate. The main weakness is topic bleed
 4. Open a PR with a problem statement, resulting behavior and verification results.
 5. One teammate reviews it; merge after CI passes. Integrate and demo each Friday.
 
-GitHub carries source and configuration templates. Each teammate builds locally. Never commit `.env`, uploaded documents, generated courses or model weights.
+GitHub carries source and configuration templates. Each teammate builds locally. Never commit `.env`, uploaded documents, generated courses or base model weights. The released reviewer adapters in `data/models/adapters` are the only weights in Git. They are stored through Git LFS and downloaded only on request.
 
 ## Repository map
 
@@ -97,9 +98,9 @@ GitHub carries source and configuration templates. Each teammate builds locally.
 | `services/worker` | PostgreSQL job consumer; built from the shared API Dockerfile |
 | `services/tts` | Optional speech service, enabled with the `media` profile |
 | `packages/prompts` | Versioned prompt templates |
-| `packages/eval` | Evaluation plan and future benchmark tooling |
+| `packages/eval` | Evaluation research, and the reviewer training and evaluation pipeline (`training/`) with its results |
 | `infra` | Compose configuration and database initialization |
 | `scripts` | Docker setup wrappers, smoke checks, and the baseline runner with its fixture |
-| `data` | Local uploads, artifacts and model caches; excluded from Git |
+| `data` | Local uploads, artifacts and model caches, excluded from Git; `data/models/adapters` holds the released reviewer adapters (Git LFS) |
 
-[UI user flow](docs/USER_FLOW.md) · [Onboarding and troubleshooting](docs/ONBOARDING.md) · [Environment](docs/ENVIRONMENT.md) · [Architecture](docs/ARCHITECTURE.md) · [Two-week deliverable](docs/SPRINT_01.md) · [Verification record](docs/VERIFICATION.md)
+[UI user flow](docs/USER_FLOW.md) · [Onboarding and troubleshooting](docs/ONBOARDING.md) · [Environment](docs/ENVIRONMENT.md) · [Architecture](docs/ARCHITECTURE.md) · [Trained models](docs/MODELS.md) · [Two-week deliverable](docs/SPRINT_01.md) · [Verification record](docs/VERIFICATION.md)
