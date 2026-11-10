@@ -173,7 +173,14 @@ The LMS integration renders its review requests through the same templates. Use 
 
 ### Promotion into the application
 
-A finished, evaluated adapter enters the app's model bundle through `python -m evaltrain.promote`. It copies the adapter, plus its dev-split evaluation as `reference/`, into `data/models/adapters/<name>/`, and refuses a run without `TRAINING_COMPLETE.json`, without an adapter evaluation, or whose `adapter_effect` check warns. After deployment, `python -m evaltrain.served_check` replays a deterministic subset of that reference against the running server and fails if the scores move by more than the tolerance (default 0.05). A wrong template, thinking left on, an adapter that silently did not load, or damaging quantization all fail this check. The surrounding release steps (`make models-lock`, `make models-verify`, `make served-check`) are in the [inference notes](../../../services/inference/README.md#release-steps).
+A finished, evaluated adapter enters the app's model bundle through `python -m evaltrain.promote`.
+
+- **What it copies:** the adapter, plus its dev-split evaluation as `reference/`, into `data/models/adapters/<name>/`. The adapter config names its base by hub id and revision, so PEFT can load it anywhere.
+- **What it refuses:** a run without `TRAINING_COMPLETE.json`, without an adapter evaluation, or whose `adapter_effect` check warns.
+
+The released adapters are committed there ([trained models](../../../docs/MODELS.md)). `python -m evaltrain.review_batch --adapter-dir data/models/adapters/<name>` batch-reviews a course with one of them on any GPU machine.
+
+After deployment, `python -m evaltrain.served_check` replays a deterministic subset of that reference against the running server. It fails if the scores move by more than the tolerance (default 0.05). A wrong template, thinking left on, an adapter that silently did not load, or damaging quantization all fail this check. The surrounding release steps (`make models-lock`, `make models-verify`, `make served-check`) are in the [inference notes](../../../services/inference/README.md#release-a-new-adapter).
 
 ## 8. Known risks and open items
 

@@ -170,5 +170,5 @@ Predictions were not affected, because each row was generated from its own promp
 
 ## 8. Next steps
 
-1. Promote the 27B adapter, lock the bundle, and pass the served check before enabling the reviewer in the app ([release steps](../../../services/inference/README.md#release-steps)).
+1. **Release.** The 27B adapter was promoted and locked on 10 November 2026: [`data/models/adapters/reviewer-main-27b-v1`](../../../data/models/adapters/reviewer-main-27b-v1), [`infra/models.lock.json`](../../../infra/models.lock.json); see the [model summary](../../../docs/MODELS.md). It still has to pass the served check on a GPU host before the reviewer is enabled in the app ([steps](../../../services/inference/README.md#run-the-released-reviewer)).
 2. Target subtle grounding errors next. RAGTruth's subtle labels are scarce: about 2.5K subtle-baseless and 200 subtle-conflict spans in the whole dataset, test split included. Options to test on dev include up-weighting responses that contain subtle spans, and a second epoch.
