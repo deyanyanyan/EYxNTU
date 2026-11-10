@@ -20,11 +20,14 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
-# --- data volumes (never commit uploads, artifacts, or model weights) ---
+# --- data volumes (never commit uploads, artifacts, or base model weights) ---
 data/uploads/*
 data/artifacts/*
 data/models/*
 !data/**/.gitkeep
+# Released LoRA adapters are committed (weights through Git LFS, see .gitattributes); base
+# models are downloaded at the revision pinned in infra/models.lock.json.
+!data/models/adapters/
 
 # --- OS / editor ---
 .DS_Store

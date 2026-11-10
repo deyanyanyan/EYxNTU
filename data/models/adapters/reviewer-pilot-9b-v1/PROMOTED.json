@@ -1,0 +1,34 @@
+{
+  "promoted_at": "2026-11-10T14:58:35+0800",
+  "source_run": "pilot-9b-v1",
+  "training_hash": "b142593f59480256",
+  "code_sha256": "09bec23b9a8b2ccc",
+  "git_revision": null,
+  "reference_split": "dev",
+  "reference_metrics": {
+    "oak_distractors": {
+      "mae": 2.0594594594594593,
+      "spearman": NaN,
+      "qwk": 0.0
+    },
+    "prometheus_rubric": {
+      "pearson": 0.8894928038618007,
+      "spearman": 0.8837999807373992,
+      "exact_all_rows": 0.6603174603174603,
+      "mae": 0.373015873015873
+    },
+    "ragtruth_grounding": {
+      "response_f1": 0.8255813953488373,
+      "response_precision": 0.8632218844984803,
+      "response_recall": 0.7910863509749304,
+      "span_char_f1": 0.5694366826869341
+    }
+  },
+  "source_sha256": {
+    "adapter_model.safetensors": "41ac449de1ebf8f9f33937a1c8ba76c7a53477bf8bb4ae8b9ed3494f3c22e6dc",
+    "adapter_config.json": "3efcd8a09d2cad6ccb525711c41957af10dc6c479c18c95abcb6787a5b3824a5",
+    "serving.json": "186f141160523427036d93acf18683536217165bfbc61bb90423e0efc2574459"
+  },
+  "adapter_config_base_renamed": true,
+  "forced_past": []
+}
