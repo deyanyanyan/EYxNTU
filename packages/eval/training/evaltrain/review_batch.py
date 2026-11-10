@@ -2,6 +2,12 @@
 
     python -m evaltrain.review_batch --config configs/main_27b.yaml \
         --requests review_requests.jsonl --out review_results.jsonl
+    python -m evaltrain.review_batch --adapter-dir data/models/adapters/reviewer-main-27b-v1 \
+        --requests review_requests.jsonl --out review_results.jsonl   # any GPU machine
+
+The first form runs on the training cluster with the run's exported adapter; the second
+uses a released bundle from this repository, whose serving.json names the base model and
+revision (the base must be in the Hugging Face cache or downloadable).
 
 The LMS writes one request per review (``apps/api/app/core/review/export.py``):
 
@@ -55,9 +61,30 @@ def render(req: dict) -> Example:
     return Example(id=req["id"], task=task, dataset="lms", split="review", group=req["id"], messages=chat(user), target=None, gold={}, meta={"ref": req.get("ref")})
 
 
+def reviewer_model(config: str | None, adapter_dir: str | None, no_adapter: bool = False) -> tuple[dict, str | None, str | None, int]:
+    """Base model, adapter path, adapter name and LoRA rank: from a training config on the
+    cluster, or from a released bundle (its serving.json names the base) anywhere else."""
+    if adapter_dir:
+        bundle = Path(adapter_dir)
+        serving = json.loads((bundle / "serving.json").read_text(encoding="utf-8"))
+        model, name, rank, adapter = {"id": serving["base_model"], "revision": serving["base_revision"]}, bundle.name, serving.get("lora_rank", 16), bundle
+    else:
+        cfg = C.load(config)
+        model, name, rank, adapter = cfg["model"], cfg["run_id"], cfg.get("lora", {}).get("rank", 16), C.run_dir(cfg) / "adapter"
+    if no_adapter:
+        return model, None, None, rank
+    if not (adapter / "adapter_config.json").exists():
+        raise SystemExit(f"no exported adapter at {adapter}")
+    weights = adapter / "adapter_model.safetensors"
+    if weights.is_file() and weights.stat().st_size < 1024 and weights.read_bytes().startswith(b"version https://git-lfs.github.com/spec/"):
+        raise SystemExit(f"{weights} is a Git LFS pointer, not the weights: fetch them with git lfs pull (docs/MODELS.md)")
+    return model, str(adapter), name, rank
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", required=True, help="experiment config: its model, revision and run adapter are used")
+    ap.add_argument("--config", help="experiment config on the training cluster: its model, revision and run adapter are used")
+    ap.add_argument("--adapter-dir", help="a released adapter bundle instead, e.g. data/models/adapters/reviewer-main-27b-v1")
     ap.add_argument("--requests", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--no-adapter", action="store_true", help="review with the untrained base model instead")
@@ -65,8 +92,9 @@ def main(argv=None) -> None:
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--max-model-len", type=int, default=8192)
     args = ap.parse_args(argv)
+    if bool(args.config) == bool(args.adapter_dir):
+        ap.error("give exactly one of --config (training cluster) or --adapter-dir (released bundle)")
 
-    cfg = C.load(args.config)
     requests = list(read_jsonl(args.requests))
     ids = [r["id"] for r in requests]
     if len(ids) != len(set(ids)):
@@ -74,11 +102,7 @@ def main(argv=None) -> None:
     examples = [render(r) for r in requests]
     refs = {r["id"]: r.get("ref") for r in requests}
 
-    model = cfg["model"]
-    adapter = None if args.no_adapter else str(C.run_dir(cfg) / "adapter")
-    if adapter and not Path(adapter, "adapter_config.json").exists():
-        raise SystemExit(f"no exported adapter at {adapter}")
-    lora_rank = cfg.get("lora", {}).get("rank", 16)
+    model, adapter, adapter_name, lora_rank = reviewer_model(args.config, args.adapter_dir, args.no_adapter)
     if args.backend == "vllm":
         backend = infer.VLLMBackend(model["id"], model.get("revision"), adapter, args.max_model_len, False, infer.Sampling(), lora_rank, False, 0.90)
     else:
@@ -95,7 +119,7 @@ def main(argv=None) -> None:
     serving = json.loads(Path(adapter, "serving.json").read_text()) if adapter else {}
     meta = {
         "reviewer": {
-            "base_model": model["id"], "base_revision": model.get("revision"), "adapter": cfg["run_id"] if adapter else None,
+            "base_model": model["id"], "base_revision": model.get("revision"), "adapter": adapter_name,
             "adapter_checkpoint": serving.get("checkpoint"), "training_hash": serving.get("training_hash"),
             "prompt_version": PROMPT_VERSION, "thinking": False, "sampling": {"temperature": 0.0},
         },
