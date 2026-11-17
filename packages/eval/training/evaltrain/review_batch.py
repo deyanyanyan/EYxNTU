@@ -5,9 +5,15 @@
     python -m evaltrain.review_batch --adapter-dir data/models/adapters/reviewer-main-27b-v1 \
         --requests review_requests.jsonl --out review_results.jsonl   # any GPU machine
 
+    python -m evaltrain.review_batch --backend openai --base-url http://127.0.0.1:11434/v1 \
+        --served-model qwen2.5:3b-instruct --requests review_requests.jsonl --out review_results.jsonl
+
 The first form runs on the training cluster with the run's exported adapter; the second
 uses a released bundle from this repository, whose serving.json names the base model and
-revision (the base must be in the Hugging Face cache or downloadable).
+revision (the base must be in the Hugging Face cache or downloadable). The third sends the
+same prompts to any OpenAI-compatible server, for example a lightweight stand-in model in
+Ollama when no GPU host or cluster is available; its findings are labelled with the served
+model's name and no adapter, and say nothing about the trained reviewer's accuracy.
 
 The LMS writes one request per review (``apps/api/app/core/review/export.py``):
 
@@ -88,11 +94,18 @@ def main(argv=None) -> None:
     ap.add_argument("--requests", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--no-adapter", action="store_true", help="review with the untrained base model instead")
-    ap.add_argument("--backend", choices=["vllm", "hf"], default="vllm")
+    ap.add_argument("--backend", choices=["vllm", "hf", "openai"], default="vllm")
+    ap.add_argument("--base-url", help="openai backend: an OpenAI-compatible server, e.g. http://127.0.0.1:11434/v1 (Ollama)")
+    ap.add_argument("--served-model", help="openai backend: the model that server serves, e.g. qwen2.5:3b-instruct")
     ap.add_argument("--batch-size", type=int, default=64)
     ap.add_argument("--max-model-len", type=int, default=8192)
     args = ap.parse_args(argv)
-    if bool(args.config) == bool(args.adapter_dir):
+    if args.backend == "openai":
+        if not (args.base_url and args.served_model):
+            ap.error("--backend openai needs --base-url and --served-model")
+        if args.config or args.adapter_dir:
+            ap.error("--backend openai reviews with the model the server serves: drop --config and --adapter-dir")
+    elif bool(args.config) == bool(args.adapter_dir):
         ap.error("give exactly one of --config (training cluster) or --adapter-dir (released bundle)")
 
     requests = list(read_jsonl(args.requests))
@@ -102,11 +115,15 @@ def main(argv=None) -> None:
     examples = [render(r) for r in requests]
     refs = {r["id"]: r.get("ref") for r in requests}
 
-    model, adapter, adapter_name, lora_rank = reviewer_model(args.config, args.adapter_dir, args.no_adapter)
-    if args.backend == "vllm":
-        backend = infer.VLLMBackend(model["id"], model.get("revision"), adapter, args.max_model_len, False, infer.Sampling(), lora_rank, False, 0.90)
+    if args.backend == "openai":
+        model, adapter, adapter_name = {"id": args.served_model, "revision": None}, None, None
+        backend = infer.OpenAIBackend(args.base_url, args.served_model, thinking=False)
     else:
-        backend = infer.HFBackend(model.get("path") or model["id"], model.get("revision"), adapter, False, False)
+        model, adapter, adapter_name, lora_rank = reviewer_model(args.config, args.adapter_dir, args.no_adapter)
+        if args.backend == "vllm":
+            backend = infer.VLLMBackend(model["id"], model.get("revision"), adapter, args.max_model_len, False, infer.Sampling(), lora_rank, False, 0.90)
+        else:
+            backend = infer.HFBackend(model.get("path") or model["id"], model.get("revision"), adapter, False, False)
 
     out = Path(args.out)
     raw = out.with_suffix(".predictions.jsonl")

@@ -69,3 +69,50 @@ def test_the_cluster_config_still_selects_the_run_adapter(tmp_path, monkeypatch)
     monkeypatch.setattr(C, "load", lambda path: cfg)
     monkeypatch.setattr(C, "run_dir", lambda c: adapter.parent)
     assert reviewer_model("configs/main_27b.yaml", None) == (cfg["model"], str(adapter), "main-27b-v1", 16)
+
+
+def test_openai_backend_reviews_through_any_compatible_server(tmp_path, monkeypatch):
+    """A stand-in model behind an OpenAI-compatible server (e.g. Ollama) gets the training
+    prompts, and its findings are labelled with that model's name and no adapter."""
+    import json
+
+    from evaltrain import infer, review_batch
+
+    replies = {"ragtruth_grounding": '{"issues": [{"span": "Slide.", "type": "evident_baseless", "implicit_true": false}]}',
+               "prometheus_rubric": '{"feedback": "Covers the source.", "score": 4}', "oak_distractors": '{"score": 2}'}
+    seen = []
+
+    def generate(self, conversations, max_tokens, want_logprobs):
+        seen.extend(conversations)
+        task = "ragtruth_grounding" if "supported by the source" in conversations[0][-1]["content"] else "prometheus_rubric" if "score rubric" in conversations[0][-1]["content"] else "oak_distractors"
+        return [infer.Generation(replies[task], [], [], None, None) for _ in conversations]
+
+    monkeypatch.setattr(infer.OpenAIBackend, "generate", generate)
+    rubric = {"instruction": "Teach X.", "response": "Slide 1: X", "reference": "X is Y.", "criteria": "Depth?", **{f"score{i}": f"level {i}" for i in range(1, 6)}}
+    requests = [
+        {"id": "D|slide|s1", "task": "ragtruth_grounding", "fields": {"context": "Source.", "response": "Slide."}, "ref": {"kind": "slide", "block": "s1"}},
+        {"id": "D|rubric|depth", "task": "prometheus_rubric", "fields": rubric, "ref": {"kind": "rubric", "block": "depth"}},
+        {"id": "Q|question|0", "task": "oak_distractors", "fields": {"question": "Q?", "answer": "A", "distractors": ["B", "C"]}, "ref": {"kind": "question", "block": "0"}},
+    ]
+    (tmp_path / "requests.jsonl").write_text("".join(json.dumps(r) + "\n" for r in requests), encoding="utf-8")
+    out = tmp_path / "results.jsonl"
+    review_batch.main(["--backend", "openai", "--base-url", "http://127.0.0.1:11434/v1", "--served-model", "qwen2.5:3b-instruct",
+                       "--requests", str(tmp_path / "requests.jsonl"), "--out", str(out)])
+
+    rows = {r["id"]: r for r in map(json.loads, out.read_text(encoding="utf-8").splitlines())}
+    assert all(r["valid"] for r in rows.values()) and rows["D|slide|s1"]["ref"] == {"kind": "slide", "block": "s1"}
+    assert rows["Q|question|0"]["parsed"] == {"score": 2}
+    meta = json.loads((tmp_path / "results.jsonl.meta.json").read_text(encoding="utf-8"))["reviewer"]
+    assert (meta["base_model"], meta["adapter"], meta["base_revision"]) == ("qwen2.5:3b-instruct", None, None)
+    assert len(seen) == 3
+
+
+def test_openai_backend_needs_a_server_and_takes_no_adapter_options(capsys):
+    from evaltrain import review_batch
+
+    with pytest.raises(SystemExit):
+        review_batch.main(["--backend", "openai", "--requests", "r.jsonl", "--out", "o.jsonl"])
+    assert "--base-url and --served-model" in capsys.readouterr().err
+    with pytest.raises(SystemExit):
+        review_batch.main(["--backend", "openai", "--base-url", "http://x/v1", "--served-model", "m", "--adapter-dir", "d", "--requests", "r", "--out", "o"])
+    assert "drop --config and --adapter-dir" in capsys.readouterr().err
