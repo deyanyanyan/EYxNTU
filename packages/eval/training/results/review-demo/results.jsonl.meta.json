@@ -1,0 +1,21 @@
+{
+  "reviewer": {
+    "base_model": "Qwen/Qwen3.8-27B",
+    "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "adapter": "main-27b-v1",
+    "adapter_checkpoint": "checkpoint-1044",
+    "training_hash": "14187ac9a2fd46dd",
+    "prompt_version": "66e720f8e43d",
+    "thinking": false,
+    "sampling": {
+      "temperature": 0.0
+    }
+  },
+  "requests": 21,
+  "valid": 21,
+  "seconds": 6.152793884277344,
+  "finished_at": "2026-10-28T10:08:49+0800",
+  "skipped_existing": 0,
+  "predicted": 21,
+  "stopped_for_deadline": false
+}
