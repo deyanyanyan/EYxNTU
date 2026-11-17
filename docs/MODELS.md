@@ -25,6 +25,7 @@ These figures come from the held-out test split, scored once. "Base" is the same
 - **Why the 27B is the release:** the 9B saw no distractor training data and did not improve on distractors. The 27B is also ahead on every other metric.
 - **Reasoning did not close the gap:** on a 645-item dev subset, both base models with step-by-step reasoning (a 16K-token thinking budget) stayed below even the 9B adapter on grounding and rubric scoring. They also took over ten times as long per item.
 - **What the numbers mean:** they measure agreement with public benchmark labels. The rubric labels are GPT-4's, not instructors' judgments of real courses, so the reviewer's course scores are advisory.
+- **On a course:** the 27B reviewed a mock course with six planted errors on GaaS. It caught all six and flagged none of the clean slides; see the [review record](../packages/eval/training/results/review-demo/README.md).
 
 ## Run them on your own GPU
 
@@ -49,6 +50,8 @@ To review in batches instead of serving live:
 1. Export a course's review requests from the app: `python -m app.core.review export`.
 2. Score them on any GPU machine with vLLM 0.32.0 and this repository's evaltrain package (`pip install -e packages/eval/training`): `python -m evaltrain.review_batch --adapter-dir data/models/adapters/reviewer-main-27b-v1 --requests … --out …`.
 3. Load the findings back: `python -m app.core.review import`.
+
+To try this round trip without a GPU, run `review_batch --backend openai --base-url http://127.0.0.1:11434/v1 --served-model qwen2.5:3b-instruct`. It sends the same prompts to a small model in Ollama. The findings are labelled with that model's name and no adapter, and they say nothing about the trained reviewer's accuracy.
 
 **Prompt contract.** The adapters only behave as measured when requests use the training templates in [`evaltrain/prompts.py`](../packages/eval/training/evaltrain/prompts.py) (version `66e720f8e43d`), with temperature 0 and thinking off. The app's reviewer client and `review_batch` both do this, and `serving.json` in each adapter records it.
 
