@@ -159,6 +159,7 @@ class CitationOut(BaseModel):
     page_start: int | None
     page_end: int | None
     text: str
+    source_changed: bool = False  # the source was re-ingested and this passage no longer appears in it
 
 
 class LessonDetail(BaseModel):

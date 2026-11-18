@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth.deps import get_current_user, require_admin, require_instructor
+from app.core.auth.permissions import assert_project_access, is_admin, is_instructor
 from app.core.auth.security import decode_token
 from app.core.jobs import service as jobs
 from app.db.session import SessionLocal, get_db
@@ -21,6 +22,21 @@ from app.models.user import User
 from app.schemas.job import JobOut
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+
+def _job(db: Session, actor: User, job_id: str, *, write: bool = False) -> Job:
+    """The job, if the actor may see it (write: cancel it). Same rule as its project:
+    admins and the owner have full access, other instructors read only, learners none.
+    Jobs with no project (none exist today) are visible to instructors and changeable by admins."""
+    job = db.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    project = db.get(Project, job.project_id) if job.project_id else None
+    if project is not None:
+        assert_project_access(actor, project, write=write)
+    elif not is_instructor(actor) or (write and not is_admin(actor)):
+        raise HTTPException(status_code=403, detail="No access to this job")
+    return job
 
 
 @router.get("", response_model=list[JobOut])
@@ -45,15 +61,13 @@ def list_jobs(project_id: str | None = None, recent_minutes: int = 30, _: User =
 
 
 @router.get("/{job_id}", response_model=JobOut)
-def get_job(job_id: str, _: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    job = db.get(Job, job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
+def get_job(job_id: str, actor: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _job(db, actor, job_id)
 
 
 @router.post("/{job_id}/cancel", response_model=JobOut)
-def cancel_job(job_id: str, _: User = Depends(require_instructor), db: Session = Depends(get_db)):
+def cancel_job(job_id: str, actor: User = Depends(require_instructor), db: Session = Depends(get_db)):
+    _job(db, actor, job_id, write=True)
     job = jobs.request_cancel(db, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -67,9 +81,18 @@ def purge_finished(_: User = Depends(require_admin), db: Session = Depends(get_d
 
 @router.get("/stream/{job_id}")
 async def stream_job(job_id: str, token: str = Query(..., description="JWT; EventSource cannot set headers")):
-    """SSE stream of a single job's progress until it finishes."""
-    if not decode_token(token):
+    """SSE stream of a single job's progress until it finishes.
+
+    EventSource cannot send an Authorization header, so the token comes in the query and is
+    checked here exactly as get_current_user does, followed by the job's project access."""
+    payload = decode_token(token)
+    if not payload or not payload.get("sub"):
         raise HTTPException(status_code=401, detail="Invalid token")
+    with SessionLocal() as db:
+        actor = db.get(User, payload["sub"])
+        if actor is None or not actor.is_active:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        _job(db, actor, job_id)
 
     async def gen():
         last = None
