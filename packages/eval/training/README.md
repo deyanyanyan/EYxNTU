@@ -1,8 +1,8 @@
 # Reviewer training pipeline (`evaltrain`)
 
-Runnable implementation of the [training handoff](../TRAINING_HANDOFF.md): public-data preparation with grouped splits, MS-SWIFT LoRA training that checkpoints and resumes inside the four-hour `gpu_free` queue, prompted-baseline and adapter evaluation with grouped confidence intervals, and a batch inference command.
+Trains and evaluates the course reviewer released in [`data/models/adapters`](../../../data/models/adapters) ([model card](../../../docs/MODELS.md)): public-data preparation with grouped splits, MS-SWIFT LoRA training that checkpoints and resumes inside the four-hour `gpu_free` queue, prompted-baseline and adapter evaluation with grouped confidence intervals, and a batch inference command.
 
-**Status, 27 October 2026, evening.** The 9B pilot has run on GaaS end to end: bootstrap, prompted baselines, a 20-step stop, the resumed run to completion, and adapter evaluation. The 27B baselines and training are queued. Results, costs and failure cases are in [RESULTS.md](RESULTS.md). Sections 1 and 3 describe the CPU checks made before the first GPU job.
+**Status, November 2026.** Both runs are complete on NTU GaaS: the 9B pilot and the 27B main run, which is the released reviewer. Results, costs and failure cases are in [RESULTS.md](RESULTS.md). Sections 1 and 3 describe the CPU checks made before the first GPU job.
 
 ## 1. What has been checked, and what has not
 

@@ -1,0 +1,150 @@
+{
+ "qwen-7b": {
+  "slides": {
+   "n": 39,
+   "lessons": 6,
+   "mean_nearest_other_lesson": 0.778,
+   "share_ge_0.80": 0.41,
+   "count_ge_0.80": 16,
+   "count_ge_0.85": 15,
+   "count_ge_0.90": 9,
+   "top_pairs": [
+    {
+     "sim": 1.0,
+     "a": "Summary",
+     "b": "Summary"
+    },
+    {
+     "sim": 0.967,
+     "a": "Information Classification\nClass | Examples | Who may see it | Storage\nPublic | Published reports, marketing pages | Anyone | Any approved system\nInternal | Org",
+     "b": "Classify Information\nClass | Examples | Who may see it | Storage\nPublic | Published reports, marketing pages | Anyone | Any approved system\nInternal | Org chart"
+    },
+    {
+     "sim": 0.942,
+     "a": "Report Security Incidents\n- Report all incidents within 1 hour\n- Do not delete suspicious messages\n- Follow steps after reporting",
+     "b": "Report Security Incidents\n- Report incidents within 1 hour\n- Do not delete suspicious messages\n- Disconnect device if asked\n- Record details of the incident"
+    },
+    {
+     "sim": 0.932,
+     "a": "Class Storage Requirements\nClass | Examples | Who may see it | Storage\nPublic | Published reports, marketing pages | Anyone | Any approved system\nInternal | Org",
+     "b": "Classify Information\nClass | Examples | Who may see it | Storage\nPublic | Published reports, marketing pages | Anyone | Any approved system\nInternal | Org chart"
+    },
+    {
+     "sim": 0.909,
+     "a": "Reporting Security Incidents\n- Report any suspected incident within 1 hour\n- Use the 'Report a security incident' button or extension 4400",
+     "b": "How to Report an Incident\n- Report to Security Desk within 1 hour\n- Use 'Report a security incident' button or call 4400 out of hours"
+    }
+   ]
+  },
+  "quiz_questions": {
+   "n": 12,
+   "lessons": 6,
+   "mean_nearest_other_lesson": 0.703,
+   "share_ge_0.80": 0.333,
+   "count_ge_0.80": 4,
+   "count_ge_0.85": 0,
+   "count_ge_0.90": 0,
+   "top_pairs": [
+    {
+     "sim": 0.805,
+     "a": "What is the most important thing to do after reporting a security incident?",
+     "b": "What should you NOT do after noticing a security incident?"
+    },
+    {
+     "sim": 0.803,
+     "a": "What should you do if you receive an MFA prompt you did not initiate?",
+     "b": "What should you do if you receive an unexpected multi-factor authentication (MFA) prompt?"
+    },
+    {
+     "sim": 0.763,
+     "a": "What should you NOT do after noticing a security incident?",
+     "b": "What should you do if you notice a security incident according to the policy?"
+    },
+    {
+     "sim": 0.747,
+     "a": "What should you do if you suspect a security incident involving a lost laptop?",
+     "b": "What must be done to a company laptop when stepping away from it?"
+    },
+    {
+     "sim": 0.701,
+     "a": "How should you handle a document that contains client personal data?",
+     "b": "When sharing your screen, what action should you take to prevent exposure of client information?"
+    }
+   ]
+  }
+ },
+ "gemini-flash": {
+  "slides": {
+   "n": 36,
+   "lessons": 6,
+   "mean_nearest_other_lesson": 0.734,
+   "share_ge_0.80": 0.25,
+   "count_ge_0.80": 9,
+   "count_ge_0.85": 5,
+   "count_ge_0.90": 0,
+   "top_pairs": [
+    {
+     "sim": 0.871,
+     "a": "Clear Desk and Screen Practices\n- Lock away printed Confidential and Restricted documents each evening.\n- Collect printouts immediately from shared office print",
+     "b": "Summary: Daily Security Habits\n- Lock away printed Confidential and Restricted documents each evening.\n- Dispose of sensitive paperwork exclusively in locked sh"
+    },
+    {
+     "sim": 0.863,
+     "a": "Clear Desk and Screen Practices\n- Lock away printed Confidential and Restricted documents each evening.\n- Collect printouts immediately from shared office print",
+     "b": "Protecting Physical Documents\n- Lock away printed Confidential and Restricted documents every evening.\n- Collect print jobs immediately from shared office print"
+    },
+    {
+     "sim": 0.853,
+     "a": "Locking Your Device Screens\n- Lock your laptop screen whenever stepping away from the desk.\n- Laptops automatically lock after five minutes of inactivity.\n- Aut",
+     "b": "Physical Device Safeguards\n- Always lock your laptop whenever stepping away from your workspace.\n- Screens automatically lock after five minutes of inactivity.\n"
+    },
+    {
+     "sim": 0.831,
+     "a": "Screen Privacy During Presentations\n- Turn off desktop and application notifications before sharing screens.\n- Close unrelated browser tabs and background windo",
+     "b": "Screen Privacy and Material Handling\n- Close unrelated windows before sharing your screen during meetings.\n- Turn off notifications to avoid displaying client d"
+    },
+    {
+     "sim": 0.813,
+     "a": "Handling Lost Devices and Incidents\n- Report lost or stolen devices within one hour of discovery,.\n- Submit reports via the service portal or call extension 440",
+     "b": "Summary: Incident Reporting Essentials\n- Report within one hour of noticing any anomaly\n- Use the service portal incident button during hours\n- Call extension 4"
+    }
+   ]
+  },
+  "quiz_questions": {
+   "n": 18,
+   "lessons": 6,
+   "mean_nearest_other_lesson": 0.559,
+   "share_ge_0.80": 0.0,
+   "count_ge_0.80": 0,
+   "count_ge_0.85": 0,
+   "count_ge_0.90": 0,
+   "top_pairs": [
+    {
+     "sim": 0.624,
+     "a": "Which safeguard must be implemented before accessing internal systems when working outside the office?",
+     "b": "Within what timeframe must staff report a suspected security incident after noticing it?"
+    },
+    {
+     "sim": 0.616,
+     "a": "What actions are required at the end of each day to protect printed documents?",
+     "b": "Which safeguard must be implemented before accessing internal systems when working outside the office?"
+    },
+    {
+     "sim": 0.609,
+     "a": "What action must an employee take whenever they step away from their company laptop?",
+     "b": "Within what timeframe must staff report a suspected security incident after noticing it?"
+    },
+    {
+     "sim": 0.59,
+     "a": "After what duration of inactivity will a company laptop screen lock automatically?",
+     "b": "Within what timeframe must staff report a suspected security incident after noticing it?"
+    },
+    {
+     "sim": 0.586,
+     "a": "Which sender-related issue is identified as a warning sign of a phishing message?",
+     "b": "How should a suspected security incident be submitted when using the service portal?"
+    }
+   ]
+  }
+ }
+}

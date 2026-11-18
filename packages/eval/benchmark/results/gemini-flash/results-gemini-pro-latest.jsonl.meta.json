@@ -1,0 +1,24 @@
+{
+  "reviewer": {
+    "base_model": "gemini-pro-latest",
+    "base_revision": null,
+    "adapter": null,
+    "adapter_checkpoint": null,
+    "training_hash": null,
+    "prompt_version": "66e720f8e43d",
+    "thinking": false,
+    "sampling": {
+      "temperature": 0.0
+    },
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai"
+  },
+  "requests": 66,
+  "valid": 66,
+  "finished_at": "2026-11-18T00:24:07+0800",
+  "inference": {
+    "skipped_existing": 0,
+    "predicted": 66,
+    "stopped_for_deadline": false,
+    "seconds": 447.09198665618896
+  }
+}

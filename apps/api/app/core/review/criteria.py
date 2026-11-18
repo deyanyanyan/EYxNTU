@@ -1,6 +1,6 @@
 """Lesson-level review criteria, scored 1-5 by the reviewer's rubric task.
 
-Adapted from the content scorecard in packages/eval/FRAMEWORK_RESEARCH.md. The reviewer
+Adapted from published course-quality rubrics (LORI, OSCQR, Learning Commons). The reviewer
 learned rubric scoring from general Prometheus rubrics, not from course-quality labels,
 so these scores are advisory. Changing any wording changes ``CRITERIA_VERSION``, which is
 stored with every review.

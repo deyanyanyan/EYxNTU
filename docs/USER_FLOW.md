@@ -1,6 +1,6 @@
 # UI user flow
 
-Last updated 22 September 2026, against the single-pass baseline.
+Last updated 18 November 2026. For setup, architecture and configuration, see [HANDOVER.md](HANDOVER.md).
 
 ## Overview
 
@@ -25,7 +25,7 @@ The app runs locally in Docker; once it is up, open http://localhost:3000 and si
     - `powershell -ExecutionPolicy Bypass -File scripts/setup.ps1`
     - `powershell -ExecutionPolicy Bypass -File scripts/compose.ps1 up --build --wait`
 3. On macOS or Linux, use `sh scripts/setup.sh` then `sh scripts/compose.sh up --build --wait`.
-4. Complete the model preparation steps in [ONBOARDING.md](ONBOARDING.md#prepare-models-and-check-document-search). A healthy app does not mean model weights are cached, and search and generation need them.
+4. Complete the model preparation steps in [HANDOVER.md](HANDOVER.md#43-prepare-the-models). A healthy app does not mean model weights are cached, and search and generation need them.
 5. Open http://localhost:3000. Sign in with `DEFAULT_ADMIN_EMAIL` and `DEFAULT_ADMIN_PASSWORD` from your generated `.env`.
 
 If you visit any page while signed out, or your session has expired, you are sent to the sign-in page. After signing in you return to the page you asked for.
@@ -164,7 +164,7 @@ Click **Jobs** in the left rail to see every run: what it worked on (such as the
 
 ### Learn page
 
-**Learn** is a placeholder today. Approved courses will appear there as an in-browser preview in a later milestone (M4).
+**Learn** lists every project's latest export and plays its SCORM package in the browser, as a learner would see it in an LMS. Learner accounts cannot see courses yet: there is no step that publishes a course to them.
 
 ## Glossary
 
@@ -183,4 +183,4 @@ Click **Jobs** in the left rail to see every run: what it worked on (such as the
 | Inspector | Right pane showing a passage's source, section, pages and text |
 | Job | A background run (ingest, plan, lessons, export) listed on the Jobs page |
 | SCORM 1.2 | A standard zip package that most LMSs can import |
-| Baseline | The current single-pass generation, with no critique or revision yet |
+| Reviewer flag | A problem the trained reviewer found on a slide or question, such as a claim the source does not support |

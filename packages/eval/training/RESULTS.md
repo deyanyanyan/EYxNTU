@@ -165,7 +165,7 @@ Predictions were not affected, because each row was generated from its own promp
 
 - **Uncertainty comes from data sampling only.** Each run used one training seed.
 - **Prometheus agreement is agreement with GPT-4,** not with human experts.
-- **Nothing here measures adult-course quality.** Transfer to this project's adult-course material, its coverage judgments, and learner outcomes remain unmeasured. The reviewer's educational judgments stay advisory (see the [handoff](../TRAINING_HANDOFF.md)).
+- **Nothing here measures adult-course quality.** Transfer to this project's adult-course material, its coverage judgments, and learner outcomes remain unmeasured. The reviewer's educational judgments stay advisory.
 - **Prompted baselines used one prompt per task**, the same one the adapters were trained on. No prompt engineering was done for the baselines.
 
 ## 8. Next steps
