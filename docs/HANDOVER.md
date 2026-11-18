@@ -93,7 +93,7 @@ Every service runs in Docker Compose (`infra/docker-compose.yml`). Which model s
 
 | Step | Job | Code | What happens |
 |---|---|---|---|
-| Ingest | `ingest_source` | `apps/api/app/core/rag/` | Docling parses layout (with simpler fallbacks), chunks keep their heading path and page range, BGE-M3 embeds them into pgvector |
+| Ingest | `ingest_source` | `apps/api/app/core/rag/` | Docling parses layout (with simpler fallbacks), chunks keep their heading path and page range, BGE-M3 embeds them into pgvector. Re-ingesting retires the old chunks and moves the course's references to unchanged passages onto the new ones (`core/rag/carry_over.py`) |
 | Plan | `generate_plan` | `core/generation/plan/` | An outline of all ready chunks → objectives call → syllabus call → plan with modules and lessons, each linked to source chunks. Plans are versioned; authors edit and approve them |
 | Lessons | `generate_lesson_assets` | `core/generation/lesson/`, `quiz/` | Per lesson: its planned chunks plus retrieval, packed to a token budget → one deck call (slides and notes with `[n]` citations) → quiz generation with validation and repair. A failed lesson is recorded, not fatal |
 | Review | batch, or live | `core/review/`, `core/llm/reviewer.py` | One request per slide (grounding), two per lesson (rubric criteria), one per quiz question (distractors). Findings are stored against the asset version they reviewed and marked stale if it changes |
@@ -392,13 +392,7 @@ The review requests, the judge's answers and the grading scripts are in [package
 | Issue | Where | Effect |
 |---|---|---|
 | Quiz evidence check does not normalise quote marks | `core/generation/quiz/service.py` | A correct question quoting `'Report'` where the source has `"Report"` is rejected |
-| Deleting a source deletes its citations | `Source` → `Chunk` → `Citation` cascade | Intended: the UI lists the lessons that use the source and asks first. Re-ingesting no longer has this effect (below) |
-| Changed passages are not yet marked in the UI | `CitationOut.source_changed` | The API reports when a citation's passage is no longer in the re-ingested source; the lesson viewer does not show it yet |
-
-**Fixed for handover (18 Nov 2026)**
-
-- **Re-ingesting a source kept deleting the course's citations.** Old chunks are now retired instead of deleted (`chunks.retired_at`, migration `0003`). Afterwards [`core/rag/carry_over.py`](../apps/api/app/core/rag/carry_over.py) moves every reference to an unchanged passage onto its new chunk. It also keeps retired passages the course still cites, so their citations still show what the content was written from. Retrieval and planning ignore retired chunks.
-- **Job endpoints ignored project access.** Reading, streaming and cancelling a job now follow the project rule: admins and the owner have full access, other instructors can read, and learners have none. The stream endpoint also rejects deactivated accounts.
+| Changed source passages are not marked in the UI | `CitationOut.source_changed` | After a re-ingest, the API flags citations whose passage is no longer in the source; the lesson viewer does not show the flag yet |
 
 **Not yet verified**
 
