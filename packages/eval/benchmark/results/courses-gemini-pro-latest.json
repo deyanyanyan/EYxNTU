@@ -1,0 +1,110 @@
+{
+ "qwen": {
+  "checks": 63,
+  "valid": 63,
+  "slides": 39,
+  "slides_flagged": 7,
+  "share_flagged": 0.179,
+  "issues": 9,
+  "issue_types": {
+   "subtle_baseless": 2,
+   "evident_baseless": 6,
+   "subtle_conflict": 1
+  },
+  "rubric_mean": {
+   "Instructional depth": 2,
+   "Fit for the learners": 3.5
+  },
+  "quiz_distractor_mean": 2.42,
+  "quiz_weak_le_2": 7,
+  "quiz_n": 12,
+  "examples": [
+   {
+    "span": "tying back to the objectives",
+    "type": "subtle_baseless"
+   },
+   {
+    "span": "MFA adds an extra layer of security",
+    "type": "evident_baseless"
+   },
+   {
+    "span": "Explain that MFA is crucial for security.",
+    "type": "subtle_baseless"
+   },
+   {
+    "span": "and the lesson objectives.",
+    "type": "evident_baseless"
+   },
+   {
+    "span": "Call HR using a known number",
+    "type": "evident_baseless"
+   },
+   {
+    "span": "Check PO in system",
+    "type": "evident_baseless"
+   },
+   {
+    "span": "Ensure that no sensitive documents are left unattended on your desk. Secure them in a locked drawer or bin.",
+    "type": "evident_baseless"
+   },
+   {
+    "span": "to prevent unauthorized access",
+    "type": "evident_baseless"
+   }
+  ]
+ },
+ "gemini": {
+  "checks": 66,
+  "valid": 66,
+  "slides": 36,
+  "slides_flagged": 23,
+  "share_flagged": 0.639,
+  "issues": 74,
+  "issue_types": {
+   "subtle_baseless": 18,
+   "evident_baseless": 54,
+   "subtle_conflict": 2
+  },
+  "rubric_mean": {
+   "Instructional depth": 4.83,
+   "Fit for the learners": 4.83
+  },
+  "quiz_distractor_mean": 2.5,
+  "quiz_weak_le_2": 11,
+  "quiz_n": 18,
+  "examples": [
+   {
+    "span": "proprietary ",
+    "type": "subtle_baseless"
+   },
+   {
+    "span": "represents high-value business material, such as client contracts, pricing models, and specialized proposals",
+    "type": "evident_baseless"
+   },
+   {
+    "span": "Following these steps prevents accidental leaks and maintains necessary boundaries between independent client engagements.",
+    "type": "evident_baseless"
+   },
+   {
+    "span": "and access is granted on a strict need-to-know basis.",
+    "type": "subtle_baseless"
+   },
+   {
+    "span": "This ensures an auditable access log and guarantees that sensitive credentials or personal records are never cached in unencrypted mail spools.",
+    "type": "evident_baseless"
+   },
+   {
+    "span": "Collect printouts immediately from shared office printers.",
+    "type": "subtle_conflict"
+   },
+   {
+    "span": "rather than regular recycling.",
+    "type": "evident_baseless"
+   },
+   {
+    "span": "This five-minute session",
+    "type": "evident_baseless"
+   }
+  ]
+ }
+}

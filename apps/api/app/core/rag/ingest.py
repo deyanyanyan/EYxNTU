@@ -9,13 +9,14 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import delete
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core.jobs import service as jobs
 from app.core.llm.embeddings import embed_texts
 from app.core.rag import rendition
+from app.core.rag.carry_over import carry_over
 from app.core.rag.chunker import chunk_elements
 from app.core.rag.parser import parse_document
 from app.models.chunk import Chunk
@@ -55,8 +56,11 @@ def ingest_source(db: Session, source_id: str, job_id: str | None = None) -> dic
         if not drafts:
             raise ValueError("no text could be extracted")
 
-        # replace any previous chunks for this source
-        db.execute(delete(Chunk).where(Chunk.source_id == src.id))
+        # Retire the previous chunks rather than delete them: course citations may point at
+        # them. carry_over() below moves those references to the new chunks.
+        db.execute(
+            update(Chunk).where(Chunk.source_id == src.id, Chunk.retired_at.is_(None)).values(retired_at=datetime.now(UTC))
+        )
         src.status = SourceStatus.EMBEDDING.value
         db.commit()
         if job_id:
@@ -68,6 +72,7 @@ def ingest_source(db: Session, source_id: str, job_id: str | None = None) -> dic
                 src.status = SourceStatus.FAILED.value
                 src.error = "cancelled"
                 db.commit()
+                carry_over(db, src.id, src.project_id)  # citations to chunks already rewritten move over
                 return {"cancelled": True}
             batch = drafts[i : i + bs]
             vecs = embed_texts([d.text for d in batch])
@@ -90,13 +95,14 @@ def ingest_source(db: Session, source_id: str, job_id: str | None = None) -> dic
             if job_id:
                 jobs.progress(db, job_id, current=min(i + bs, len(drafts)))
 
+        carried = carry_over(db, src.id, src.project_id)
         src.chunk_count = len(drafts)
         src.status = SourceStatus.READY.value
         src.error = None
         _set_config(db, "embedding_model", settings.embedding_model)
         _set_config(db, "last_ingest_at", datetime.now(UTC).isoformat())
         db.commit()
-        return {"chunks": len(drafts), "parser": structure.get("parser")}
+        return {"chunks": len(drafts), "parser": structure.get("parser"), "citations_carried_over": carried}
     except Exception as exc:
         db.rollback()
         src = db.get(Source, source_id)

@@ -113,7 +113,7 @@ def get_settings() -> Settings:
     try:
         return Settings()  # type: ignore[call-arg]
     except Exception as exc:  # pragma: no cover - startup guard
-        raise SystemExit(f"\n[config] invalid environment:\n{exc}\n\nSee docs/ENVIRONMENT.md\n") from exc
+        raise SystemExit(f"\n[config] invalid environment:\n{exc}\n\nSee .env.example and docs/HANDOVER.md\n") from exc
 
 
 settings = get_settings()

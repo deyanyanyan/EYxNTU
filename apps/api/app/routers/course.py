@@ -406,6 +406,7 @@ def get_lesson(project_id: str, lesson_id: str, actor: User = Depends(require_in
             CitationOut(
                 block_id=c.block_id, chunk_id=c.chunk_id, quote=c.quote, source_name=filename,
                 heading_path=chunk.heading_path, page_start=chunk.page_start, page_end=chunk.page_end, text=chunk.text,
+                source_changed=chunk.retired_at is not None,
             )
             for c, chunk, filename in cites
         ],

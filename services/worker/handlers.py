@@ -51,7 +51,7 @@ def handle_export_course(db: Session, job_id: str, payload: dict) -> dict:
 
 def _not_implemented(kind: str) -> Handler:
     def _h(db: Session, job_id: str, payload: dict) -> dict:
-        jobs.progress(db, job_id, message=f"{kind} is scheduled for a later milestone; see docs/ROADMAP.md")
+        jobs.progress(db, job_id, message=f"{kind} is scheduled for a later milestone; see docs/HANDOVER.md")
         raise NotImplementedError(kind)
 
     return _h
@@ -59,7 +59,7 @@ def _not_implemented(kind: str) -> Handler:
 
 HANDLERS: dict[str, Handler] = {
     JobKind.INGEST_SOURCE.value: handle_ingest_source,
-    # Single-pass baseline: no critique, no gates. See docs/HANDOFF.md.
+    # Single pass: review is a separate batch or live step. See docs/HANDOVER.md.
     JobKind.GENERATE_PLAN.value: handle_generate_plan,
     JobKind.GENERATE_LESSON_ASSETS.value: handle_generate_lessons,
     JobKind.CRITIQUE_ASSET.value: _not_implemented("critique_asset"),          # M3

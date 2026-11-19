@@ -1,0 +1,22 @@
+{
+  "project_id": "56d0c8d6-76d0-4ebc-b3c2-f22d1a8cc91d",
+  "plan_id": "705cee7d-33d0-44b6-ba2d-90f2473d86fc",
+  "plan_version": 1,
+  "criteria_version": "736b4841c7f3",
+  "requests": 63,
+  "assets": {
+    "601e1bd2-5a9a-46d7-a891-3c4e0cd6220c": 1,
+    "40eb0aef-47a1-4088-887f-2f6110f68767": 1,
+    "87efa3ad-6a71-486f-9d6c-753620dad84e": 1,
+    "c9ebeeab-891f-4e80-afcc-4572bb2f1b67": 1,
+    "f28d7b93-2292-4ab0-8ec4-e975a52db5c5": 1,
+    "7502cf45-59c0-4655-8b4e-86e78b72bcf2": 1,
+    "6f9a8b84-4223-4d21-b11d-0707caed238c": 1,
+    "cc64d786-a41a-4e34-a925-e1be9b33b9d6": 1,
+    "4c2320a7-3443-457b-b517-542ae567253f": 1,
+    "05fe0a16-7331-46c5-90f6-87cf6f252e56": 1,
+    "ef9bd2b1-ffa5-4162-9805-b8365936d840": 1,
+    "f4ed448a-35bb-4c0c-8f1e-fc5d27cd94a0": 1
+  },
+  "exported_at": "2026-11-17T15:57:15+0000"
+}

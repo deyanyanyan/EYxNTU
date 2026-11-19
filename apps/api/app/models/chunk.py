@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ForeignKey, Index, Integer, String, Text
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,6 +31,9 @@ class Chunk(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     element_type: Mapped[str | None] = mapped_column(String(32), nullable=True)  # paragraph|table|list|caption
     meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Set when a re-ingest replaced this chunk but course content still cites its text
+    # (app/core/rag/carry_over.py). Retired chunks are never retrieved.
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     source = relationship("Source", back_populates="chunks")
 

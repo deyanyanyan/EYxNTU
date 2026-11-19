@@ -145,7 +145,7 @@ def outline_chunks(db: Session, project_id: str) -> list[RetrievedChunk]:
     rows = db.execute(
         select(Chunk, Source.filename)
         .join(Source, Source.id == Chunk.source_id)
-        .where(Chunk.project_id == project_id, Source.status == SourceStatus.READY.value)
+        .where(Chunk.project_id == project_id, Chunk.retired_at.is_(None), Source.status == SourceStatus.READY.value)
         .order_by(Source.created_at, Chunk.chunk_index)
     ).all()
     heads: list[RetrievedChunk] = []

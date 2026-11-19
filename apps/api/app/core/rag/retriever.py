@@ -50,7 +50,7 @@ def retrieve(
     stmt = (
         select(Chunk, Source.filename, distance)
         .join(Source, Source.id == Chunk.source_id)
-        .where(Chunk.project_id == project_id)
+        .where(Chunk.project_id == project_id, Chunk.retired_at.is_(None))
         .order_by(distance)
         .limit(top_k)
     )
