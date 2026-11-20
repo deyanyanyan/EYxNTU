@@ -13,6 +13,8 @@ FROM deps AS base
 COPY apps/api /srv/api
 COPY packages/prompts /srv/packages/prompts
 COPY scripts /srv/scripts
+# The trained reviewer's recorded review of the demo course (scripts/seed_review_demo.py)
+COPY packages/eval/training/results/review-demo /srv/packages/eval/training/results/review-demo
 
 FROM deps AS worker
 # Headless LibreOffice renders Word and PowerPoint uploads to PDF for the source viewer
@@ -26,6 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY apps/api /srv/api
 COPY packages/prompts /srv/packages/prompts
 COPY scripts /srv/scripts
+# The trained reviewer's recorded review of the demo course (scripts/seed_review_demo.py)
+COPY packages/eval/training/results/review-demo /srv/packages/eval/training/results/review-demo
 WORKDIR /srv/worker
 COPY services/worker /srv/worker
 CMD ["python", "worker.py"]
