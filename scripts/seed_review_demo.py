@@ -44,6 +44,8 @@ for candidate in (Path("/srv/api"), Path(__file__).resolve().parents[1] / "apps"
 from sqlalchemy import select  # noqa: E402
 
 from app.config import settings  # noqa: E402
+from app.core.review.export import build_requests  # noqa: E402
+from app.core.review.importer import import_results  # noqa: E402
 from app.db.session import session_scope  # noqa: E402
 from app.models.asset import Asset, AssetKind, Citation  # noqa: E402
 from app.models.chunk import Chunk  # noqa: E402
@@ -51,8 +53,6 @@ from app.models.course import CoursePlan, Lesson, Module, PlanStatus  # noqa: E4
 from app.models.project import Project  # noqa: E402
 from app.models.source import Source, SourceStatus  # noqa: E402
 from app.models.user import User  # noqa: E402
-from app.core.review.export import build_requests  # noqa: E402
-from app.core.review.importer import import_results  # noqa: E402
 
 PROJECT_NAME = sys.argv[1] if len(sys.argv) > 1 else "Northwind security essentials (review demo)"
 FIXTURE_CANDIDATES = (Path("/srv/scripts/fixtures/baseline_course.md"), Path(__file__).resolve().parent / "fixtures" / "baseline_course.md")
