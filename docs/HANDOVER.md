@@ -228,7 +228,7 @@ To see reviewer findings in the app without a GPU, seed the mock course that the
 sh scripts/compose.sh exec -T api python /srv/scripts/seed_review_demo.py
 ```
 
-It creates "Northwind Information Security Essentials" with six planted errors. Import the reviewer's recorded findings for it, or review it again (section 4.6).
+It creates "Northwind Information Security Essentials" with six planted errors and imports the trained 27B reviewer's recorded findings for it ([`review-demo`](../packages/eval/training/results/review-demo/README.md)), so they appear on the slides and quiz questions. The script imports only if the course text is identical to what the reviewer saw; otherwise it says so, and the course can be reviewed again (section 4.6).
 
 ### 4.5 Use a hosted writer instead
 

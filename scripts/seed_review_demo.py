@@ -17,15 +17,24 @@ to find:
 Chunk embeddings are deterministic placeholders, so semantic search over this project is
 meaningless; the demo is about review, not retrieval. Re-running replaces the project of the
 same name; pass a name to seed a separate copy (for example, to try destructive flows).
+
+After seeding, the trained 27B reviewer's recorded findings for this course
+(packages/eval/training/results/review-demo, GaaS batch job 95508) are imported, so they
+show in the app without a GPU. The recording names the asset IDs of the database it was
+made in, so the script first exports this course's review requests and imports only if
+every one is identical to a request the reviewer answered; the findings are then moved to
+the new IDs unedited. If the course text has changed, the import is skipped.
 """
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import random
 import re
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 for candidate in (Path("/srv/api"), Path(__file__).resolve().parents[1] / "apps" / "api"):
@@ -42,10 +51,16 @@ from app.models.course import CoursePlan, Lesson, Module, PlanStatus  # noqa: E4
 from app.models.project import Project  # noqa: E402
 from app.models.source import Source, SourceStatus  # noqa: E402
 from app.models.user import User  # noqa: E402
+from app.core.review.export import build_requests  # noqa: E402
+from app.core.review.importer import import_results  # noqa: E402
 
 PROJECT_NAME = sys.argv[1] if len(sys.argv) > 1 else "Northwind security essentials (review demo)"
 FIXTURE_CANDIDATES = (Path("/srv/scripts/fixtures/baseline_course.md"), Path(__file__).resolve().parent / "fixtures" / "baseline_course.md")
 TITLE = "Northwind Analytics — Information Security Essentials"
+REVIEW_RECORD_CANDIDATES = (
+    Path("/srv/packages/eval/training/results/review-demo"),
+    Path(__file__).resolve().parents[1] / "packages" / "eval" / "training" / "results" / "review-demo",
+)
 
 OBJECTIVES = [
     {"id": "o1", "text": "Create, store and protect Northwind passwords and use MFA as the handbook requires", "bloom_level": "apply"},
@@ -238,6 +253,43 @@ def main() -> None:
             db.add_all([deck, quiz])
         db.commit()
         print(f"seeded project {project.id}: {len(LESSONS)} lessons, {sum(len(s['slides']) for s in LESSONS)} slides, {sum(len(s['quiz']) for s in LESSONS)} quiz questions")
+        import_recorded_review(db, project.id)
+
+
+def read_jsonl(path: Path) -> list[dict]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def request_key(request: dict) -> str:
+    """What the reviewer was shown: the task, the reviewed text and sources, and which block."""
+    return json.dumps([request["task"], request["fields"], request["ref"]["kind"], request["ref"]["block"]], sort_keys=True, ensure_ascii=False)
+
+
+def import_recorded_review(db, project_id: str) -> None:
+    """Attach the trained reviewer's recorded findings, if this course matches what it reviewed."""
+    record = next((p for p in REVIEW_RECORD_CANDIDATES if (p / "results.jsonl").exists()), None)
+    if record is None:
+        print("reviewer record not found (packages/eval/training/results/review-demo): findings not imported")
+        return
+    recorded = read_jsonl(record / "requests.jsonl")
+    current, manifest = build_requests(db, project_id)
+    new_by_key = {request_key(r): r for r in current}
+    unmatched = [r["id"] for r in recorded if request_key(r) not in new_by_key]
+    if unmatched or len(current) != len(recorded):
+        print(f"course text differs from what the reviewer saw ({len(unmatched)} of {len(recorded)} recorded requests unmatched, "
+              f"{len(current)} now): findings not imported; export and review this course again instead")
+        return
+    new_id = {r["id"]: new_by_key[request_key(r)] for r in recorded}
+    with tempfile.TemporaryDirectory() as tmp:
+        results = Path(tmp) / "results.jsonl"
+        with results.open("w", encoding="utf-8") as out:
+            for row in read_jsonl(record / "results.jsonl"):
+                target = new_id[row["id"]]
+                out.write(json.dumps(row | {"id": target["id"], "ref": target["ref"]}, ensure_ascii=False) + "\n")
+        (Path(tmp) / "results.jsonl.meta.json").write_text((record / "results.jsonl.meta.json").read_text(encoding="utf-8"), encoding="utf-8")
+        (Path(tmp) / "requests.jsonl.manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        summary = import_results(db, project_id, results, manifest=Path(tmp) / "requests.jsonl.manifest.json")
+    print(f"imported the trained reviewer's recorded findings: {json.dumps(summary)}")
 
 
 if __name__ == "__main__":
