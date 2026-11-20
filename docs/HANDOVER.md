@@ -222,13 +222,11 @@ sh scripts/compose.sh exec -T api python /srv/scripts/course_baseline.py --keep
 
 It takes 15–30 minutes on a CPU laptop. `--keep` leaves the course in the UI; `--source <file>` (repeatable), `--audience`, `--duration` and `--goals` change the input. The record is written to `data/artifacts/baselines/<timestamp>.json`.
 
-To see reviewer findings in the app without a GPU, seed the mock course that the trained reviewer has already reviewed:
+The app also contains a mock course the trained reviewer has already reviewed, so its findings can be seen without a GPU. On first start, the API creates "Northwind security essentials (review demo)": "Northwind Information Security Essentials" with six planted errors, and imports the trained 27B reviewer's recorded findings for it ([`review-demo`](../packages/eval/training/results/review-demo/README.md)), so they appear on the slides and quiz questions. Startup only creates it when no project of that name exists, so edits survive restarts and a deleted demo comes back on the next start. The findings are imported only if the course text is identical to what the reviewer saw; otherwise the API logs a warning, and the course can be reviewed again (section 4.6). To recreate the course from scratch:
 
 ```sh
 sh scripts/compose.sh exec -T api python /srv/scripts/seed_review_demo.py
 ```
-
-It creates "Northwind Information Security Essentials" with six planted errors and imports the trained 27B reviewer's recorded findings for it ([`review-demo`](../packages/eval/training/results/review-demo/README.md)), so they appear on the slides and quiz questions. The script imports only if the course text is identical to what the reviewer saw; otherwise it says so, and the course can be reviewed again (section 4.6).
 
 ### 4.5 Use a hosted writer instead
 
