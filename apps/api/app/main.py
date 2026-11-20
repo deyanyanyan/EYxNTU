@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.core.auth.bootstrap import ensure_default_admin
+from app.core.review.demo import ensure_review_demo
 from app.routers import auth, course, health, jobs, projects, prompts, scorm_preview, search, sources, users
 
 logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -17,6 +18,7 @@ async def lifespan(app: FastAPI):
     settings.uploads_dir.mkdir(parents=True, exist_ok=True)
     settings.artifacts_dir.mkdir(parents=True, exist_ok=True)
     ensure_default_admin()
+    ensure_review_demo()
     log.info("api ready. llm=%s @ %s, embeddings=%s", settings.llm_model, settings.llm_base_url, settings.embedding_model)
     yield
 
